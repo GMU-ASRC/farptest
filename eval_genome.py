@@ -1,3 +1,4 @@
+import os
 import argparse
 from pathlib import Path
 from collections import Counter
@@ -9,12 +10,7 @@ from swarmsim.util.processing.multicoreprocessing import process_map
 
 cwd = Path(__file__).resolve().parent
 
-
-ALLOWED_KWARGS = {
-    "evader",
-    "n",
-    "seed",
-}
+METRIC = 'ttd'
 
 
 def parse_list_arg(strings: list[str]) -> list[float]:
@@ -53,7 +49,7 @@ def test_genome_mp(genome, n=6, rng_seed=20, trials=100):
     configs = [
         config_from_yaml(
             cwd / "world.yaml",
-            m="ttc",
+            m=METRIC,
             evader="pid",
             g=genome,
             seed=seed,
@@ -64,8 +60,8 @@ def test_genome_mp(genome, n=6, rng_seed=20, trials=100):
     ret_arr = process_map(fitness_single, configs)
     stats, successes = zip(*ret_arr)
 
-    cap_rate = 1 - sum(successes)  / len(seeds)
-    return stats, cap_rate
+    rate = 1 - sum(successes) / len(seeds)
+    return stats, rate
 
 
 def parse_args():
@@ -83,7 +79,7 @@ def parse_args():
         "-r", "--rng_seed", type=int, default=20, help="Seed for random number generator"
     )
     args = parser.parse_args()
-    
+
     genome = parse_list_arg(args.genome)
     return genome, args
 
@@ -93,5 +89,6 @@ if __name__ == "__main__":
     print(f"Testing genome: {genome} \twith {args.agents} agents")
     ns = args.samples
 
-    _, cap_rate = test_genome_mp(genome, trials=args.samples)
-    print(f"Capture rate:\t{100 * cap_rate:.2f}%\t({int(cap_rate * ns)}/{ns})")
+    _, rate = test_genome_mp(genome, trials=args.samples)
+    print(f"{'Capture' if METRIC == 'ttc' else 'Detection'} rate:\t"
+          f"{100 * rate:.2f}%\t({int(rate * ns)}/{ns})")

@@ -1,5 +1,5 @@
 import numpy as np
-from eval_genome import fitness_single, cwd, parse_args
+from eval_genome import fitness_single, cwd, parse_args, METRIC
 from swarmsim import config_from_yaml
 
 genome, args = parse_args()
@@ -14,7 +14,7 @@ print(f"Seeds: {seeds}")
 configs = [
     config_from_yaml(
         cwd / "world.yaml",
-        m="ttc",
+        m=METRIC,
         evader="pid",
         g=genome,
         seed=seed,
@@ -28,6 +28,7 @@ for c in configs:
     _, success = fitness_single(c, show_gui=True, start_paused=False)
     successes.append(success)
 
-cap_rate = 1 - sum(successes)  / len(seeds)
+rate = 1 - sum(successes) / len(seeds)
 
-print(f"Capture rate:\t{100 * cap_rate:.2f}%\t({int(cap_rate * ns)}/{ns})")
+print(f"{'Capture' if METRIC == 'ttc' else 'Detection'} rate:\t"
+      f"{100 * rate:.2f}%\t({int(rate * ns)}/{ns})")
