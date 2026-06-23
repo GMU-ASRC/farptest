@@ -3,8 +3,9 @@ from pathlib import Path
 from collections import Counter
 
 import numpy as np
-from swarmsim.util.processing.multicoreprocessing import process_map
+os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
 from swarmsim import config_from_yaml, run_sim
+from swarmsim.util.processing.multicoreprocessing import process_map
 
 cwd = Path(__file__).resolve().parent
 
