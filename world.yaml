@@ -5,6 +5,14 @@ size:  # in meters
   - 10
 time_step: !np 1 / 20  # 0.05 seconds
 seed: <{ seed }>
+agents:
+- type: DetectionRegion
+  position: [5.0, 5.0]
+  collides: Detect
+  name: goal
+  agent_radius: 1.0
+  target_teams:
+  - red
 spawners:
 - type: UniformAgentSpawner
   n: <{ n|default(20) }>  # default number of agents BUT may be overridden by user args
@@ -46,27 +54,27 @@ spawners:
       - 70
       - 255
     body_filled: true
-- type: UniformAgentSpawner
-  n: 1
-  region: [[4.4, 4.4], [4.4, 5.6], [5.6, 5.6], [5.6, 4.4]]
-  agent:
-    type: DetectionRegion
-    collides: Detect
-    name: goal
-    agent_radius: 1.0
-    target_teams:
-    - red
+# - type: UniformAgentSpawner
+#   n: 1
+#   region: [[4.4, 4.4], [4.4, 5.6], [5.6, 5.6], [5.6, 4.4]]
+#   agent:
+#     type: DetectionRegion
+#     collides: Detect
+#     name: goal
+#     agent_radius: 1.0
+#     target_teams:
+#     - red
 - type: DonutAgentSpawner
   n: <{ n_evaders|default(1) }>
   center: [5.0, 5.0]
-  inner_radius: 3.0
-  outer_radius: 6.0
+  inner_radius: 5.0
+  outer_radius: 8.0
   agent:
     type: MazeAgent
     name: intruder
     #%> set evader = evader|default('pid')
     team: red
-    agent_radius: !np 0.3 / 2
+    agent_radius: !np 0.2 / 2
     body_color:
       - 255
       - 20
