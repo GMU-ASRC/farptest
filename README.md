@@ -6,9 +6,10 @@ to get started.
 
 ## Quickstart
 ```
-git clone https://github.com/GMU-ASRC/farptest
 uv venv
 source .venv/bin/activate
+git clone https://github.com/GMU-ASRC/farptest
+cd farptest
 uv pip install -r requirements.txt
 python eval_genome.py -- [0.2, 0.2, 0.2, -0.2]
 ```
