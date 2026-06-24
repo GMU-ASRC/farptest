@@ -89,6 +89,6 @@ if __name__ == "__main__":
     print(f"Testing genome: {genome} \twith {args.agents} agents")
     ns = args.samples
 
-    _, rate = test_genome_mp(genome, trials=args.samples)
+    _, rate = test_genome_mp(genome, trials=args.samples, rng_seed=args.rng_seed)
     print(f"{'Capture' if METRIC == 'ttc' else 'Detection'} rate:\t"
           f"{100 * rate:.2f}%\t({int(rate * ns)}/{ns})")
