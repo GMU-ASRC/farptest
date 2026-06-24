@@ -125,8 +125,6 @@ def find_cma(
     except KeyboardInterrupt:
         print("Detected <C-c>; stopping now...")
     finally:
-        cmaes.es.result_pretty()
-
         dt_str = dt.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         with open(f"results/cmaes_{dt_str}.json", "w") as f:
             json.dump({
@@ -164,6 +162,8 @@ if __name__ == "__main__":
         required=True,
         help="Maximum number of iterations",
     )
+
+    # python cmaes/farpcma.py -n 6 -p 100 -mi 500 -m ttd -d bc -e pid
 
     # YAML-specific config
     # TODO: add validation before starting CMA-ES run
