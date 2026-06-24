@@ -126,7 +126,7 @@ def find_cma(
         print("Detected <C-c>; stopping now...")
     finally:
         dt_str = dt.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        with open(f"results/cmaes_{dt_str}.json", "w") as f:
+        with open(f"cmaes_{dt_str}.json", "w") as f:
             json.dump({
                 "rng_seed": rng_seed,
                 "pop_size": pop_size,

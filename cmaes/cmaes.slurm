@@ -36,4 +36,4 @@ cd ~/cmaes_stuff/farptest/ || { echo "Unable to navigate to farptest"; exit 1; }
 source .venv/bin/activate || { echo "Unable to activate venv"; exit 1; }
 
 ## Load modules, insert code, and run your programs here.
-python cmaes/farpcma.py -n 6 -t 150 -p 250 -mi 500 -m ttd -d bc -e pid
+python cmaes/farpcma.py -n 6 -t 100 -p 250 -mi 500 -m ttd -d bc -e pid
