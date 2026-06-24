@@ -1,0 +1,4 @@
+type: BinaryController
+a: [<{ g[0] }>, <{ g[1] }>]
+b: [<{ g[2] }>, <{ g[3] }>]
+sensor_id: 0

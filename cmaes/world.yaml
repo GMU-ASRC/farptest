@@ -1,0 +1,114 @@
+---
+type: "RectangularWorld"
+size:  # in meters
+  - 10
+  - 10
+time_step: !np 1 / 20  # 0.05 seconds
+seed: <{ seed|default(2024) }>
+spawners:
+- type: UniformAgentSpawner
+  n: <{ blue_n|default(6) }>  # default number of agents BUT may be overridden by user args
+  facing: away
+  region: [[4.4, 4.4], [4.4, 5.6], [5.6, 5.6], [5.6, 4.4]]
+  agent:
+    type: MazeAgent
+    sensors:
+    - type: BinaryFOVSensor
+      theta: 0.45  # Vision Angle / 2 (Radians)
+      distance: 1.0  # meters. previously 2.55
+      show: true
+      bias: 0
+      store_history: false
+      target_team: blue
+    - type: BinaryFOVSensor
+      theta: 0.45  # Vision Angle / 2 (Radians)
+      distance: 1.0  # meters. previously 2.55
+      show: true
+      bias: 0
+      store_history: false
+      target_team: red
+    controller: !include <{ defender|default('bc', true) }>.yaml
+    #   type: LevyController
+    #   velocity: 0.2
+    #   angular_velocity: 0.6
+    #   levy_constant: .3
+    #   curving: true
+    #   timeout_steps: 300
+    #   step_scale: 1.0
+    team: blue
+    agent_radius: !np 0.2 / 2
+    body_color:
+      - 0
+      - 70
+      - 255
+    body_filled: true
+- type: UniformAgentSpawner
+  n: 1
+  region: [[4.4, 4.4], [4.4, 5.6], [5.6, 5.6], [5.6, 4.4]]
+  agent:
+    type: DetectionRegion
+    collides: Detect
+    name: goal
+    agent_radius: 1.0
+    target_teams:
+    - red
+- type: DonutAgentSpawner
+  n: <{ n_evaders|default(1) }>
+  center: [5.0, 5.0]
+  inner_radius: 3.0
+  outer_radius: 6.0
+  agent:
+    type: MazeAgent
+    name: intruder
+    #%> set evader = evader|default('pid')
+    team: red
+    agent_radius: !np 0.3 / 2
+    body_color:
+      - 255
+      - 20
+      - 30
+    body_filled: true
+    sensors:
+    - type: Targeter
+      attribute: position
+      target_name: goal
+      hold: holdfirst
+      store_history: false
+      <% if evader == 'binary' %>
+    - type: BinaryFOVSensor
+      theta: 0.45  # Vision Angle / 2 (Radians)
+      distance: 1.0  # meters. previously 2.55
+      show: true
+      bias: 0
+      store_history: false
+      target_team: blue
+    controller:
+      type: BinaryController
+      a: [0.2, 0.2]
+      b: [0.2, 0]
+      sensor_id: 0
+    <% elif evader == 'human' %>
+    controller:
+      type: HumanController
+      joystick: 0
+    <% elif evader == 'pid' %>
+    controller:
+      type: WaypointPIDController
+      sensor_id: 0
+      speed_pid:
+        p: 1.0
+        i: 0.0
+        d: 0.0
+        max: 0.3
+      steer_pid:
+        p: 1.0
+        i: 0.0
+        d: 0.0
+        min: -1.0
+        max: 1.0
+    <% endif %>
+metadata:
+  hash: _hash
+#%> set cycles = cycles|default(1000)
+#%> set cycles = 99999
+<<: !include <{ m|default('ttd') }>.yaml
