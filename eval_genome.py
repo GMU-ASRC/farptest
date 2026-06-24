@@ -60,7 +60,7 @@ def test_genome_mp(genome, n=6, rng_seed=20, trials=100):
     ret_arr = process_map(fitness_single, configs)
     stats, successes = zip(*ret_arr)
 
-    rate = 1 - sum(successes) / len(seeds)
+    rate = sum(successes) / len(seeds)
     return stats, rate
 
 
