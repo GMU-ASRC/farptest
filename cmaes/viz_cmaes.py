@@ -13,8 +13,8 @@ import numpy as np
 from tqdm import tqdm
 
 from swarmsim.world.simulate import main as sim
-from CMAES import CMAES
-from farpcma import gene_to_world, DECISION_VARS
+from cmaes.CMAES import CMAES
+from cmaes.farpcma import gene_to_world, DECISION_VARS
 
 # NOTE: Legacy stuff from the novel-swarms era
 SCALE = 1

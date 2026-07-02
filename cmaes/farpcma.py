@@ -6,9 +6,9 @@ from collections import Counter
 from pathlib import Path
 
 import numpy as np
-from CMAES import CMAES
+from cmaes.CMAES import CMAES
 from numpy.typing import NDArray
-from OptimVar import CMAESVarSet
+from cmaes.OptimVar import CMAESVarSet
 from swarmsim.util.processing.multicoreprocessing import process_map
 from swarmsim.world import config_from_yaml
 from swarmsim.world.simulate import main as simulate
