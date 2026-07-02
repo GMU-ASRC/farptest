@@ -7,7 +7,7 @@ from numpy.typing import NDArray
 
 class CMAES:
     def __init__(self,
-        fitness: Callable,
+        fitness: Callable[[list[list[float]], int, int], tuple[list[dict], list[float]]],
         target: float,
         seed: int = 20,
         genome_size: int = 4,
@@ -24,6 +24,8 @@ class CMAES:
         self.seed = seed
         self.bounds = [[0.0 for _ in range(genome_size)], [1.0 for _ in range(genome_size)]]
 
+        self.iter_per_disp = max(1, int(max_iters * 0.1))
+
         self.all_run_stats = []
         self.es = cma.CMAEvolutionStrategy(self.x0, self.sigma0, self.options())
 
@@ -31,31 +33,27 @@ class CMAES:
         return {
             "bounds": self.bounds,
             "ftarget": self.target,
+            "maxiter": self.max_iters,
+            "seed": self.seed,
+            "verb_disp": self.iter_per_disp,
 
             # Force a larger population of 20 per batch
             # "popsize": 20,
 
             # Scale step sizes for each dimension
             # "CMA_stds": [1.0, 100.0, 0.01],
-
-            # Stop after 500 generations no matter what
-            "maxiter": self.max_iters,
-
-            # Make the run perfectly reproducible
-            "seed": self.seed,
-
-            # Only print to console every 50 loops
-            # "verb_disp": 50
         }
 
-    def evolve(self, n: int, seeds: NDArray[np.int64], yaml_conf: dict[str, str]):
+    def evolve(self, n: int, iter_seeds: list[list[int]]):
+        iters = 0
         while not self.es.stop():
             solutions = self.es.ask()
-            stats, succ_rates = self.fitness(n, solutions, seeds, yaml_conf)
+            stats, succ_rates = self.fitness(solutions, n=n, iter_seed=iter_seeds[iters])
             self.all_run_stats.extend(stats)
             self.es.tell(solutions, succ_rates)
 
             self.es.disp()
+            iters += 1
 
         self.es.result_pretty()
         return self.es.result.xbest, self.es.result.fbest

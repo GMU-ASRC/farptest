@@ -1,20 +1,12 @@
-"""
-Find the best Homogeneous Agents for Milling
-"""
-
+import argparse
 import sys
 import pathlib as pl
-sys.path.append(str(pl.Path(__file__).parents[2]))
-
-from ctypes import ArgumentError
-from io import BytesIO
-import argparse
-import numpy as np
-from tqdm import tqdm
+sys.path.append(str(pl.Path(__file__).parents[1]))
 
 from swarmsim.world.simulate import main as sim
-from cmaes.CMAES import CMAES
-from cmaes.farpcma import gene_to_world, DECISION_VARS
+from farpcma import DECISION_VARS
+from eval_genome import gene_to_world
+
 
 # NOTE: Legacy stuff from the novel-swarms era
 SCALE = 1
@@ -40,7 +32,7 @@ def run(args, genome) -> float:
     # world_config, *_ = world_generator(genome, [-1, -1, -1, -1])
     # note: world_config contains some persistent stuff like behaviors
 
-    world_config = gene_to_world(args.n, genome, args.s)
+    world_config = gene_to_world(genome, args.n, args.s)
     return sim(world_config=world_config, save_every_ith_frame=2, save_duration=1000, start_paused=True)
 
 
@@ -86,5 +78,5 @@ if __name__ == "__main__":
     print(f"w0 (rad/s):\t{g[1]:>16.12f}\tw1 (rad/s):\t{g[3]:>16.12f}")
 
     world = run(args, genome)
-    name, value = world.metrics[0].name, world.metrics[0].value
-    print(f"{name}: {value}")
+    for i, m in enumerate(world.metrics):
+        print(f"[{i:2}] {m.name}: {m.value}")
