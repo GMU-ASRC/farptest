@@ -1,0 +1,36 @@
+metrics:
+- type: JinjaMetric
+  name: Time to Detect
+  metrics:
+  template: |
+    {% set ttd = world.metrics[1].value %}
+    {% set ttc = world.metrics[2].value %}
+    {% set redwin = world.metrics[3].value %}
+    {% set captured = ttc if ttc > 0 else False %}
+    {% set detected = ttd if ttd > 0 else False %}
+  expression: redwin
+- type: StepsUntil
+  name: Time to Detect sub
+  default: -1
+  metric:
+    type: AnyAgent
+    name: red detected by blue
+    # value_on_found: True
+    include_teams:
+    - blue
+    expression: agent.sensors[1].current_state
+- type: StepsUntil
+  name: Time to Capture sub
+  default: -1
+  metric:
+    type: EntityLen
+    name: How many collided with red
+    history: 1
+    target_name: intruder
+    attribute: collided
+- type: EntityLen
+  name: How many red on goal
+  history: 1
+  target_name: goal
+  attribute: collided
+stop_at: world.total_steps > <{cycles|default(1000)}> or world.metrics[0].module.redwin or world.metrics[0].module.detected

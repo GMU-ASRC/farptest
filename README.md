@@ -1,6 +1,8 @@
-# farptest (CMA-ES version)
+# farptest
 
-This branch cannot standalone; it needs the `eval_genome.py` and relevant yaml files from the `main` branch to run.
+This repo contains all of the code necessary to engage in the weekly FARP point defense challenge. At beginning of each week,
+an updated version of problem will be uploaded. Submissions should be made Friday of the same week. Look below for instructions
+to get started.
 
 ## Quickstart
 ```
