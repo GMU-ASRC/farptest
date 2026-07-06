@@ -35,7 +35,7 @@ spawners:
       bias: 0
       store_history: false
       target_team: red
-    # %> set blue_controller = blue_controller|default('binary')
+    #%> set blue_controller = blue_controller|default('binary')
     <% if blue_controller == 'binary' %>
     controller:
       type: BinaryController
