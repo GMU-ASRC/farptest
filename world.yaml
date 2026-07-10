@@ -126,6 +126,10 @@ spawners:
         d: 0.0
         min: -1.0
         max: 1.0
+    <% elif evader == 'none' %>
+    controller:
+      type: StaticController
+      
     <% endif %>
 metadata:
   hash: _hash
