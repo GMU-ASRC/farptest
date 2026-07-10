@@ -41,7 +41,7 @@ def fitness_single(
     return stat, out
 
 
-def test_genome_mp(genome, n=6, rng_seed=20, trials=100):
+def test_genome_mp(genome, n=6, rng_seed=20, trials=100, tqdm_kwargs={}):
     seeds = np.random.default_rng(rng_seed).integers(
         0, 2**31, size=trials, dtype=np.int64
     )
@@ -57,7 +57,7 @@ def test_genome_mp(genome, n=6, rng_seed=20, trials=100):
         )
         for seed in seeds
     ]
-    ret_arr = process_map(fitness_single, configs)
+    ret_arr = process_map(fitness_single, configs, **tqdm_kwargs)
     stats, successes = zip(*ret_arr)
 
     rate = 1 - sum(successes) / len(seeds)
@@ -90,6 +90,7 @@ if __name__ == "__main__":
     print(f"Base Seed: {args.rng_seed}")
     ns = args.samples
 
-    _, rate = test_genome_mp(genome, trials=args.samples, rng_seed=args.rng_seed)
+    _, rate = test_genome_mp(genome, trials=args.samples,
+                             rng_seed=args.rng_seed, n=args.agents)
     print(f"{'Capture' if METRIC == 'ttc' else 'Detection'} rate:\t"
           f"{100 * rate:.2f}%\t({int(rate * ns)}/{ns})")

@@ -15,7 +15,7 @@ agents:
   - red
 spawners:
 - type: UniformAgentSpawner
-  n: <{ n|default(20) }>  # default number of agents BUT may be overridden by user args
+  n: <{ n|default(6) }>  # default number of agents BUT may be overridden by user args
   facing: away
   region: [[4.4, 4.4], [4.4, 5.6], [5.6, 5.6], [5.6, 4.4]]
   agent:
@@ -35,18 +35,26 @@ spawners:
       bias: 0
       store_history: false
       target_team: red
+    #%> set blue_controller = blue_controller|default('binary')
+    <% if blue_controller == 'binary' %>
     controller:
       type: BinaryController
       a: [<{ g[0] }>, <{ g[1] }>]
       b: [<{ g[2] }>, <{ g[3] }>]
       sensor_id: 0
-    #   type: LevyController
-    #   velocity: 0.2
-    #   angular_velocity: 0.6
-    #   levy_constant: .3
-    #   curving: true
-    #   timeout_steps: 300
-    #   step_scale: 1.0
+    <% elif blue_controller == 'levy' %>
+    controller:
+      type: LevyController
+      velocity: 0.2
+      angular_velocity: 0.6
+      levy_constant: .3
+      curving: true
+      timeout_steps: 300
+      step_scale: 1.0
+    <% elif blue_controller == 'custom' %>
+    controller:
+      type: <{ blue_controller_class|default('CustomController') }>
+    <% endif %>
     team: blue
     agent_radius: !np 0.2 / 2
     body_color:
