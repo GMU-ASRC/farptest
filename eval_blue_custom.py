@@ -10,6 +10,15 @@ from swarmsim.util.processing.multicoreprocessing import process_map
 from eval_genome import METRIC
 from eval_genome import fitness_single as fitness_single_genome
 
+
+from swarmsim.config import register_dictlike_type
+from DiffuseSentinel import DiffuseSentinelController
+from ComplexSentinel import ComplexSentinelController
+
+register_dictlike_type("controller", "DiffuseSentinelController", DiffuseSentinelController)
+register_dictlike_type("controller", "ComplexSentinelController", ComplexSentinelController)
+
+
 cwd = Path(__file__).resolve().parent
 
 
@@ -59,7 +68,7 @@ def test_mp(blue_controller=None, n=6, rng_seed=20, trials=100, tqdm_kwargs={}):
             cwd / "world.yaml",
             m=METRIC,
             blue_controller='custom',
-            # blue_controller_class=args.blue_controller,
+            blue_controller_class=blue_controller,
             evader="pid",
             seed=seed,
             n=n,
@@ -75,10 +84,10 @@ def test_mp(blue_controller=None, n=6, rng_seed=20, trials=100, tqdm_kwargs={}):
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    # parser.add_argument(
-    #     "-b", "--blue_controller", type=str, default='CustomController',
-    #     help="Path to blue controller",
-    # )
+    parser.add_argument(
+        "-b", "--blue_controller", type=str, default='CustomController',
+        help="Path to blue controller",
+    )
     parser.add_argument(
         "-s", "--samples", type=int, default=100, help="Number of samples to test"
     )
@@ -95,7 +104,7 @@ def parse_args():
 
 if __name__ == "__main__":
     args = parse_args()
-    controller = 'CustomController'
+    controller = args.blue_controller
     print(f"Testing controller: {controller} \twith {args.agents} agents")
     print(f"Base Seed: {args.rng_seed}")
     ns = args.samples
@@ -105,7 +114,6 @@ if __name__ == "__main__":
     # else:
 
 
-    _, rate = test_mp(trials=args.samples,
-                             rng_seed=args.rng_seed, n=args.agents)
+    _, rate = test_mp(trials=args.samples, rng_seed=args.rng_seed, n=args.agents, blue_controller=controller)
     print(f"{'Capture' if METRIC == 'ttc' else 'Detection'} rate:\t"
           f"{100 * rate:.2f}%\t({int(rate * ns)}/{ns})")

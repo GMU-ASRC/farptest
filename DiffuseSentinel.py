@@ -12,7 +12,7 @@ def smallest_angular_difference(a1, a2):
 
 
 
-class CustomController(AbstractController):
+class DiffuseSentinelController(AbstractController):
     def __init__(self, agent=None, parent=None):
         super().__init__(agent, parent)
         self.pseudostep = 0 # track the world step count internally
