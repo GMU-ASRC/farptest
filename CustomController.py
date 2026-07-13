@@ -35,19 +35,19 @@ class CustomController(AbstractController):
             if SECOND_STAGE == self.pseudostep: # setup this stage
                 self.persist = TURN_LIMIT
                 self.cvec = (np.atan2(self.cvec[1], self.cvec[0]) + np.pi) % (2*np.pi) # set cvec to the opposite angle of the vector
-            else:
-                sad = smallest_angular_difference(self.pseudoangle, self.cvec)
-                
-                if HALF_ANGLE < abs(sad): # start scanning the other way when the edge of the scan arc is reached
-                    self.persist = TURN_LIMIT * -np.sign(sad)
-                else: # overlap prevention system
-                    if (self.pseudofirstseen == 0 or 100 < self.pseudostep - self.pseudofirstseen) and detected: # if first defender detected in the last 100 steps
-                        self.pseudofirstseen = self.pseudostep
-                        self.persist *= -1
-                if not detected:
-                    self.pseudofirstseen = 0
+
+            sad = smallest_angular_difference(self.pseudoangle, self.cvec)
+            
+            if HALF_ANGLE < abs(sad): # start scanning the other way when the edge of the scan arc is reached
+                self.persist = TURN_LIMIT * -np.sign(sad)
+            else: # overlap prevention system
+                if (self.pseudofirstseen == 0 or 100 < self.pseudostep - self.pseudofirstseen) and detected: # if first defender detected in the last 100 steps
+                    self.pseudofirstseen = self.pseudostep
+                    self.persist *= -1
+            if not detected:
+                self.pseudofirstseen = 0
 
             v, w = 0, self.persist
 
-        self.pseudoangle += w * self.agent.world.dt
+        self.pseudoangle += w * self.agent.world.dt # udate internal agent angle
         return np.clip(v, -SPEED_LIMIT, SPEED_LIMIT), np.clip(w, -TURN_LIMIT, TURN_LIMIT)  # DO NOT CHANGE THIS LINE
