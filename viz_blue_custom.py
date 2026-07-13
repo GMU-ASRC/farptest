@@ -17,8 +17,8 @@ configs = [
         cwd / "world.yaml",
         m=METRIC,
         blue_controller='custom',
-        # blue_controller_class=args.blue_controller,
-        evader="pid",
+        blue_controller_class=args.blue_controller,
+        evader="none",
         seed=seed,
         n=args.agents,
     )

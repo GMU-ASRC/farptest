@@ -4,6 +4,7 @@ import numpy as np
 SPEED_LIMIT = 0.3
 TURN_LIMIT = 0.6
 SECOND_STAGE = 200
+DISPERSAL_TIME = 50
 HALF_ANGLE = 1.4
 
 def smallest_angular_difference(a1, a2):
@@ -19,23 +20,30 @@ class ComplexSentinelController(AbstractController):
         self.cvec = (0, 0) # track the average direction in which other agents are, then on toggle fix in the opposite direction
         self.pseudoangle = 0 # track the agent angle internally
         self.pseudofirstseen = 0 # track the step at which a defender is seen, this is to stop the overlap prevention system from getting stuck
+        self.persist = TURN_LIMIT
 
     def get_actions(self, agent):
         self.pseudostep += 1 # increment internal world step count
         detected = agent.sensors[0].current_state
 
-        if self.pseudostep < SECOND_STAGE: # first stage, diffuse and track average direction in which other agents are 
+        if self.pseudostep < SECOND_STAGE:
             if detected:
                 self.cvec = (self.cvec[0] + np.cos(self.pseudoangle), self.cvec[1] + np.sin(self.pseudoangle)) # add unit vector in current direction
-
-                v, w = -SPEED_LIMIT, TURN_LIMIT # back away and turn clockwise if other defender detected
-            else:
-                v, w = SPEED_LIMIT, TURN_LIMIT # go forward and turn clockwise if nothing detected
-        else: # second stage, sit and scan away from the other defenders
+            v, w = 0, TURN_LIMIT
+        elif self.pseudostep < SECOND_STAGE + DISPERSAL_TIME:
             if SECOND_STAGE == self.pseudostep: # setup this stage
+                self.pseudostep += 2
                 self.persist = TURN_LIMIT
-                self.cvec = (np.atan2(self.cvec[1], self.cvec[0]) + np.pi) % (2*np.pi) # set cvec to the opposite angle of the vector
+                self.cvec = (np.atan2(self.cvec[1], self.cvec[0]) + np.pi) % (2 * np.pi)
 
+            sad = smallest_angular_difference(self.pseudoangle, self.cvec)
+            
+            if 0.1 < abs(sad): 
+                self.pseudostep -= 1
+                v, w = 0, TURN_LIMIT * -np.sign(sad)
+            else: # overlap prevention system
+                v, w = SPEED_LIMIT, 0
+        else: 
             sad = smallest_angular_difference(self.pseudoangle, self.cvec)
             
             if HALF_ANGLE < abs(sad): # start scanning the other way when the edge of the scan arc is reached
