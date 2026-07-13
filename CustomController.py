@@ -4,7 +4,7 @@ import numpy as np
 SPEED_LIMIT = 0.3
 TURN_LIMIT = 0.6
 SECOND_STAGE = 200
-HALF_ANGLE = 1.6
+HALF_ANGLE = 1.4
 
 def smallest_angular_difference(a1, a2):
     a = a1 - a2
