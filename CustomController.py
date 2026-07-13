@@ -34,13 +34,13 @@ class CustomController(AbstractController):
 
         if TOGGLE_TIME <= self.pseudostep:
             if TOGGLE_TIME == self.pseudostep:
-                self.persist = 0.6
+                self.persist = TURN_LIMIT
                 self.cvec = (np.atan2(self.cvec[1], self.cvec[0]) + np.pi) % (2*np.pi)
             else:
                 sad = smallest_angular_difference(self.pseudoangle, self.cvec)
                 
                 if HALF_ANGLE < abs(sad):
-                    self.persist = 0.6 * -np.sign(sad)
+                    self.persist = TURN_LIMIT * -np.sign(sad)
                 else:
                     if (self.pseudofirstseen == 0 or 100 < self.pseudostep - self.pseudofirstseen) and detected:
                         self.pseudofirstseen = self.pseudostep
