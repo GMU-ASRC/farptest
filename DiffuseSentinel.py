@@ -1,5 +1,7 @@
 from swarmsim.agent.control.AbstractController import AbstractController
 import numpy as np
+from DisperseSentinel import setinel_draw
+
 
 SPEED_LIMIT = 0.3
 TURN_LIMIT = 0.6
@@ -13,6 +15,9 @@ def smallest_angular_difference(a1, a2):
 
 
 class DiffuseSentinelController(AbstractController):
+    def draw(self, screen, offset=((0, 0), 1.0)):
+        setinel_draw(self, screen, offset)
+    
     def __init__(self, agent=None, parent=None):
         super().__init__(agent, parent)
         self.pseudostep = 0 # track the world step count internally

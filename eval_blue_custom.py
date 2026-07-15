@@ -14,9 +14,12 @@ from eval_genome import fitness_single as fitness_single_genome
 from swarmsim.config import register_dictlike_type
 from DiffuseSentinel import DiffuseSentinelController
 from ComplexSentinel import ComplexSentinelController
+from DisperseSentinel import DisperseSentinelController
+
 
 register_dictlike_type("controller", "DiffuseSentinelController", DiffuseSentinelController)
 register_dictlike_type("controller", "ComplexSentinelController", ComplexSentinelController)
+register_dictlike_type("controller", "DisperseSentinelController", DisperseSentinelController)
 
 
 cwd = Path(__file__).resolve().parent
