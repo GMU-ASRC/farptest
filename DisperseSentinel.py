@@ -5,16 +5,17 @@ import numpy as np
 
 SPEED_LIMIT = 0.3
 TURN_LIMIT = 0.6
-SECOND_STAGE = 200
-DISPERSAL_TIME = 50
+SECOND_STAGE = 250
+THIRD_STAGE = 0
+MAGNITUDE_COUNTERSPEED = 0.2
 HALF_ANGLE = 1.4
 
 def smallest_angular_difference(a1, a2):
     a = a1 - a2
     return (a + np.pi) % (2*np.pi) - np.pi
 
-def full_whisker_override(self, s):
-    pass
+def vec_magnitude(vec):
+    return np.sqrt(np.sum(np.array(vec)**2))
 
 def setinel_draw(self, screen, offset=((0, 0), 1.0)):
     internal_to_real_angle = lambda t : self.agent.angle - self.pseudoangle + t
@@ -22,7 +23,7 @@ def setinel_draw(self, screen, offset=((0, 0), 1.0)):
     pan, zoom = np.asarray(offset[0]), np.asarray(offset[1])
     
     if hasattr(self, "cangle"):        
-        pygame.draw.line(screen, pygame.colordict.THECOLORS["violet"], self.agent.pos * zoom + pan, self.agent.pos * zoom + pan + np.sqrt(np.sum(np.array(self.cvec)**2))*np.array([np.cos(internal_to_real_angle(self.cangle)), np.sin(internal_to_real_angle(self.cangle))]))
+        pygame.draw.line(screen, pygame.colordict.THECOLORS["violet"], self.agent.pos * zoom + pan, self.agent.pos * zoom + pan + 100*vec_magnitude(self.cvec)*np.array([np.cos(internal_to_real_angle(self.cangle)), np.sin(internal_to_real_angle(self.cangle))]))
     
     self = self.agent.sensors[0]
 
@@ -60,7 +61,7 @@ class DisperseSentinelController(AbstractController):
     def __init__(self, agent=None, parent=None):
         super().__init__(agent, parent)
         self.pseudostep = 0 # track the world step count internally
-        self.cvec = (0, 0) # track the average direction in which other agents are, then on toggle fix in the opposite direction
+        self.cvec = np.array([0, 0], dtype=np.float64) # track the average direction in which other agents are, then on toggle fix in the opposite direction
         self.cangle = 0
         self.pseudoangle = 0 # track the agent angle internally
         self.pseudofirstseen = 0 # track the step at which a defender is seen, this is to stop the overlap prevention system from getting stuck
@@ -74,18 +75,36 @@ class DisperseSentinelController(AbstractController):
 
         if self.stage == 1:
             if detected:
-                self.cvec = (self.cvec[0] + np.cos(self.pseudoangle), self.cvec[1] + np.sin(self.pseudoangle)) # add unit vector in current direction
+                self.cvec += np.array([np.cos(self.pseudoangle), np.sin(self.pseudoangle)]) * SPEED_LIMIT * self.agent.world.dt
                 self.cangle = (np.atan2(self.cvec[1], self.cvec[0])) % (2 * np.pi)
+            
+            v, w = 0, TURN_LIMIT
+            # if detected:
+                # v = -SPEED_LIMIT
+            if abs(smallest_angular_difference(self.pseudoangle, self.cangle)) < np.pi/2: 
+                v = -MAGNITUDE_COUNTERSPEED/vec_magnitude(self.cvec) * SPEED_LIMIT
+            if abs(smallest_angular_difference(self.pseudoangle, (self.cangle + np.pi) % (2 * np.pi))) < np.pi/2:
+                v = MAGNITUDE_COUNTERSPEED/vec_magnitude(self.cvec) * SPEED_LIMIT
 
+            
+            if self.clock_wait(SECOND_STAGE): # switch to and setup second stage
+                self.set_clock()
+                self.stage = 2
+                self.persist = TURN_LIMIT
+        elif self.stage == 2:
+            if detected:
+                self.cvec += np.array([np.cos(self.pseudoangle), np.sin(self.pseudoangle)]) * SPEED_LIMIT * self.agent.world.dt
+                self.cangle = (np.atan2(self.cvec[1], self.cvec[0])) % (2 * np.pi)
+            
             v, w = 0, TURN_LIMIT
 
-            if abs(smallest_angular_difference(self.pseudoangle, self.cangle)) < np.pi/2: 
-                v = -SPEED_LIMIT/3
-            if abs(smallest_angular_difference(self.pseudoangle, (self.cangle + np.pi) % (2 * np.pi))) < np.pi/2:
-                v = SPEED_LIMIT/3
+            if detected:
+                v, w = -SPEED_LIMIT/3, TURN_LIMIT
+            else:
+                v, w = 0, TURN_LIMIT
 
-            if self.clock_wait(SECOND_STAGE): # switch to and setup second stage
-                self.stage = 2
+            if self.clock_wait(THIRD_STAGE): # switch to and setup second stage
+                self.stage = 3
                 self.persist = TURN_LIMIT
                 
         else:
