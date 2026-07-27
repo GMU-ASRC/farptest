@@ -1,0 +1,14 @@
+- type: Targeter
+  attribute: position
+  target_name: goal
+  hold: holdfirst
+  store_history: false
+##%> if evader == 'binary'
+- type: BinaryFOVSensor
+  theta: 0.45  # Vision Angle / 2 (Radians)
+  distance: 1.0  # meters. previously 2.55
+  show: true
+  bias: 0
+  store_history: false
+  target_team: blue
+##%> endif

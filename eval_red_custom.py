@@ -13,8 +13,12 @@ from util import load_all_controllers, test_mp
 cwd = Path(__file__).resolve().parent
 
 
+GENOME = [0.3, 0.6, -0.3, 0.6]  # josh's winning genome
+
+
 def fitness_single(*args, **kwargs):
-    load_all_controllers(cwd)
+    load_all_controllers(cwd, name_suffix='Controller')
+    load_all_controllers(cwd, name_suffix='Evader')
     return fitness_single_genome(*args, **kwargs)
 
 
@@ -27,9 +31,10 @@ def generate_configs(rng_seed=20, n=6, trials=100):
         config_from_yaml(
             cwd / "world.yaml",
             m=METRIC,
-            blue_controller='custom',
+            # blue_controller='custom',
             # blue_controller_class=args.blue_controller,
-            evader="pid",
+            g=GENOME,
+            evader="custom",
             seed=seed,
             n=n,
         )
@@ -59,10 +64,14 @@ def parse_args():
 
 if __name__ == "__main__":
     args = parse_args()
-    controller = 'CustomController'
-    print(f"Testing controller: {controller} \twith {args.agents} agents")
+    print(f"Testing controller: {GENOME}\t vs. CustomEvader with {args.agents} agents")
     print(f"Base Seed: {args.rng_seed}")
     ns = args.samples
+
+    # if args.blue_controller:
+    #     load_all_controllers()
+    # else:
+
 
     _, rate = test_mp(generate_configs(
         rng_seed=args.rng_seed, n=args.agents, trials=args.samples),

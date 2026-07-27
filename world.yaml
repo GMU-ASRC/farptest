@@ -88,31 +88,17 @@ spawners:
       - 20
       - 30
     body_filled: true
-    sensors:
-    - type: Targeter
-      attribute: position
-      target_name: goal
-      hold: holdfirst
-      store_history: false
-      <% if evader == 'binary' %>
-    - type: BinaryFOVSensor
-      theta: 0.45  # Vision Angle / 2 (Radians)
-      distance: 1.0  # meters. previously 2.55
-      show: true
-      bias: 0
-      store_history: false
-      target_team: blue
+    sensors: !include red_sensors.yaml
     controller:
+      #%> if evader == 'binary'
       type: BinaryController
       a: [0.2, 0.2]
       b: [0.2, 0]
       sensor_id: 0
-    <% elif evader == 'human' %>
-    controller:
+      #%> elif evader == 'human'
       type: HumanController
       joystick: 0
-    <% elif evader == 'pid' %>
-    controller:
+      #%> elif evader == 'pid'
       type: WaypointPIDController
       sensor_id: 0
       speed_pid:
@@ -126,7 +112,9 @@ spawners:
         d: 0.0
         min: -1.0
         max: 1.0
-    <% endif %>
+      #%> elif evader == 'custom'
+      !include red_controller.yaml
+      #%> endif
 metadata:
   hash: _hash
 #%> set metricfile = m|default('ttc')
