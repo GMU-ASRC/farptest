@@ -15,50 +15,50 @@ class ComplexSentinelController(SentinelController):
         self.persist = TURN_LIMIT
     
     def get_v_w(self, detected):
-        if self.stage == 1:
+        if self.stage == 1: # spin in place and scan to build up cvec
             if detected:
                 self.cvec += np.array([np.cos(self.pseudoangle), np.sin(self.pseudoangle)]) * SPEED_LIMIT * self.agent.world.dt
                 self.cangle = (np.atan2(self.cvec[1], self.cvec[0])) % (2 * np.pi)
             v, w = 0, TURN_LIMIT
-            if self.clock_wait(SECOND_STAGE): # switch to and setup second stage
+            if self.clock_wait(SECOND_STAGE):
                 self.stage = 2
                 self.persist = TURN_LIMIT
                 self.cangle = (np.atan2(self.cvec[1], self.cvec[0])) % (2 * np.pi)
-        elif self.stage == 2:
+        elif self.stage == 2: # align to cangle
             sad = smallest_angular_difference(self.pseudoangle, self.cangle)
             v, w = 0, TURN_LIMIT * -np.sign(sad)
-            if abs(sad) < 0.1: # switch to third stage
+            if abs(sad) < 0.1:
                 self.stage = 3
                 self.cvec = np.array([0, 0], dtype=np.float64)
                 self.set_clock()
-        elif self.stage == 3:
+        elif self.stage == 3: # back up while scanning for cvec
             v, w = -SPEED_LIMIT, 0
             self.cvec += np.array([np.cos(self.pseudoangle), np.sin(self.pseudoangle)]) * SPEED_LIMIT * self.agent.world.dt
             if self.clock_wait(DISPERSAL_TIME / 2):
                 self.set_clock()
                 self.stage = 4
                 self.cangle = (np.atan2(self.cvec[1], self.cvec[0])) % (2 * np.pi)
-        elif self.stage == 4:
+        elif self.stage == 4: # one sweep back and forth while scanning for cvec
             v, w = 0, TURN_LIMIT if self.clock_wait((np.pi / 2) / (TURN_LIMIT * self.agent.world.dt)) else -TURN_LIMIT
             self.cvec += np.array([np.cos(self.pseudoangle), np.sin(self.pseudoangle)]) * SPEED_LIMIT * self.agent.world.dt
             if self.clock_wait((np.pi * 2) / (TURN_LIMIT * self.agent.world.dt)):
                 self.set_clock()
                 self.stage = 5
                 self.cangle = (np.atan2(self.cvec[1], self.cvec[0])) % (2 * np.pi)
-        elif self.stage == 5:
+        elif self.stage == 5: # align to cangle
             sad = smallest_angular_difference(self.pseudoangle, (self.cangle + np.pi) % (2 * np.pi))
             v, w = 0, TURN_LIMIT * -np.sign(sad)
-            if abs(sad) < 0.1: # switch to third stage
+            if abs(sad) < 0.1:
                 self.stage = 6
                 self.set_clock()
-        elif self.stage == 6:
+        elif self.stage == 6: # scoot forward
             v, w = SPEED_LIMIT, 0
             self.cvec += np.array([np.cos(self.pseudoangle), np.sin(self.pseudoangle)]) * SPEED_LIMIT * self.agent.world.dt
             if self.clock_wait(DISPERSAL_TIME / 2):
                 self.set_clock()
                 self.stage = 7
                 self.cangle = (np.atan2(self.cvec[1], self.cvec[0])) % (2 * np.pi)
-        else:
+        else: # sentinel endpoint
             sad = smallest_angular_difference(self.pseudoangle, (self.cangle + np.pi) % (2 * np.pi))
             
             if HALF_ANGLE < abs(sad): # start scanning the other way when the edge of the scan arc is reached
