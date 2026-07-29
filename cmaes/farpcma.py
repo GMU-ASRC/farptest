@@ -113,6 +113,15 @@ if __name__ == "__main__":
     args = parser.parse_args()
     start = time.time()
     assert len(args.n_range) == 1, "This is a temporary limit; you can only supply 1 value for n"
+
+    # Print helpful info
+    print("CMA-ES run info:")
+    print(f"\tn        = {args.n_range}")
+    print(f"\trng_seed = {args.rng_seed}")
+    print(f"\ttrials     = {args.trials}")
+    print(f"\tpop_size   = {args.pop_size}")
+    print(f"\tmax_iters  = {args.max_iters}")
+
     find_cma(
         rng_seed=args.rng_seed,
         pop_size=args.pop_size,

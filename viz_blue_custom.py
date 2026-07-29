@@ -1,12 +1,12 @@
 import numpy as np
-from eval_genome import fitness_single, cwd, parse_args, METRIC, generate_configs
-from util import load_all_controllers
+from eval_blue_custom import fitness_single, cwd, parse_args, METRIC, load_all_controllers, generate_configs
 
-genome, args = parse_args()
-print(f"Testing genome: {genome} \twith {args.agents} agents")
+args = parse_args()
+load_all_controllers()
+# print(f"Testing genome: {genome} \twith {args.agents} agents")
 ns = args.samples
 
-configs = generate_configs(genome, trials=ns, rng_seed=args.rng_seed, n=args.agents)
+configs = generate_configs(trials=ns, rng_seed=args.rng_seed, n=args.agents)
 
 successes = []
 for c in configs:

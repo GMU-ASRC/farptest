@@ -6,7 +6,7 @@ from collections import Counter
 import numpy as np
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
 from swarmsim import config_from_yaml, run_sim
-from swarmsim.util.processing.multicoreprocessing import process_map
+from util import test_mp
 
 cwd = Path(__file__).resolve().parent
 
@@ -50,20 +50,22 @@ def gene_to_world(genome, n, seed):
         seed=seed,
     )
 
-def test_genome_mp(genome, n=6, rng_seed=20, trials=100):
+def generate_configs(genome, rng_seed=20, n=6, trials=100):
     seeds = np.random.default_rng(rng_seed).integers(
         0, 2**31, size=trials, dtype=np.int64
     )
 
-    configs = [
-        gene_to_world(genome, n=n, seed=seed)
+    return [
+        config_from_yaml(
+            cwd / "world.yaml",
+            m=METRIC,
+            evader="pid",
+            g=genome,
+            seed=seed,
+            n=n,
+        )
         for seed in seeds
     ]
-    ret_arr = process_map(fitness_single, configs)
-    stats, successes = zip(*ret_arr)
-
-    rate = 1 - sum(successes) / len(seeds)
-    return stats, rate
 
 
 def parse_args():
@@ -92,7 +94,9 @@ if __name__ == "__main__":
     print(f"Base Seed: {args.rng_seed}")
     ns = args.samples
 
-    _, rate = test_genome_mp(genome, trials=args.samples,
-                             rng_seed=args.rng_seed, n=args.agents)
+    _, rate = test_mp(generate_configs(
+        genome, rng_seed=args.rng_seed, n=args.agents, trials=args.samples),
+        fitness_single,
+    )
     print(f"{'Capture' if METRIC == 'ttc' else 'Detection'} rate:\t"
           f"{100 * rate:.2f}%\t({int(rate * ns)}/{ns})")
