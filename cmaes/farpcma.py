@@ -12,7 +12,8 @@ import numpy as np
 from CMAES import CMAES
 from OptimVar import CMAESVarSet
 
-from eval_genome import test_genome_mp
+from eval_genome import generate_configs, fitness_single
+from util import test_mp
 
 
 cwd = Path(__file__).resolve().parent
@@ -30,10 +31,14 @@ VAR_CONFIGS = {
 DECISION_VARS = CMAESVarSet(VAR_CONFIGS)
 
 
-def fitness_wrapper(genomes: list[list[float]], n: int, iter_seed: int):
+def fitness_wrapper(genomes: list[list[float]], n: int, iter_seed: int, trials: int):
     all_stats, all_rates = [], []
     for genome in genomes:
-        stats, rate = test_genome_mp(genome, n=n, rng_seed=iter_seed)
+        # stats, rate = test_genome_mp(genome, n=n, rng_seed=iter_seed)
+        stats, rate = test_mp(generate_configs(
+            genome, n=n, rng_seed=iter_seed, trials=trials),
+            fitness_single,
+        )
         all_stats.extend(stats)
         all_rates.append(-rate)
 
@@ -44,6 +49,7 @@ def find_cma(
     rng_seed: int,
     pop_size: int,
     max_iters: int,
+    trials: int,
     n=6,
 ):
     iter_seeds = np.random.default_rng(rng_seed).integers(
@@ -59,7 +65,7 @@ def find_cma(
     )
     bests = []
     try:
-        best_norm_genome, best_fitness = cmaes.evolve(n, iter_seeds)
+        best_norm_genome, best_fitness = cmaes.evolve(n, iter_seeds, trials)
         best_unnorm_genome = DECISION_VARS.from_unit_to_scaled(best_norm_genome)
         bests.append({
             "n": n,
@@ -126,6 +132,7 @@ if __name__ == "__main__":
         rng_seed=args.rng_seed,
         pop_size=args.pop_size,
         max_iters=args.max_iters,
+        trials=args.trials,
         n=args.n_range[0],
     )
     print(f"Took {time.time() - start} seconds")

@@ -7,7 +7,7 @@ from numpy.typing import NDArray
 
 class CMAES:
     def __init__(self,
-        fitness: Callable[[list[list[float]], int, int], tuple[list[dict], list[float]]],
+        fitness: Callable,
         target: float,
         seed: int = 20,
         genome_size: int = 4,
@@ -44,11 +44,11 @@ class CMAES:
             # "CMA_stds": [1.0, 100.0, 0.01],
         }
 
-    def evolve(self, n: int, iter_seeds: list[list[int]]):
+    def evolve(self, n: int, iter_seeds: list[list[int]], trials: int):
         iters = 0
         while not self.es.stop():
             solutions = self.es.ask()
-            stats, succ_rates = self.fitness(solutions, n=n, iter_seed=iter_seeds[iters])
+            stats, succ_rates = self.fitness(solutions, n=n, iter_seed=iter_seeds[iters], trials=trials)
             self.all_run_stats.extend(stats)
             self.es.tell(solutions, succ_rates)
 

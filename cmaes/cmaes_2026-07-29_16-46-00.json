@@ -1,0 +1,1 @@
+{"rng_seed": 20, "pop_size": 10, "max_iters": 100, "var_configs": {"forward_rate_0": [-0.3, 0.3], "turning_rate_0": [-0.6, 0.6], "forward_rate_1": [-0.3, 0.3], "turning_rate_2": [-0.6, 0.6]}, "bests": [], "runs": []}

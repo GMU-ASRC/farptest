@@ -50,14 +50,14 @@ def gene_to_world(genome, n, seed):
         seed=seed,
     )
 
-def generate_configs(genome, rng_seed=20, n=6, trials=100):
+def generate_configs(genome, rng_seed=20, n=6, trials=100, yaml_path: str = "world_new.yaml"):
     seeds = np.random.default_rng(rng_seed).integers(
         0, 2**31, size=trials, dtype=np.int64
     )
 
     return [
         config_from_yaml(
-            cwd / "world.yaml",
+            cwd / yaml_path,
             m=METRIC,
             evader="pid",
             g=genome,

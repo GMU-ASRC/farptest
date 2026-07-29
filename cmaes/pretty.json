@@ -1,0 +1,997 @@
+{
+  "rng_seed": 20,
+  "pop_size": 10,
+  "max_iters": 100,
+  "var_configs": {
+    "forward_rate_0": [
+      -0.3,
+      0.3
+    ],
+    "turning_rate_0": [
+      -0.6,
+      0.6
+    ],
+    "forward_rate_1": [
+      -0.3,
+      0.3
+    ],
+    "turning_rate_2": [
+      -0.6,
+      0.6
+    ]
+  },
+  "bests": [
+    {
+      "n": 6,
+      "unnorm_genome": [
+        0.002856880095106429,
+        0.40722711684722246,
+        -0.14779631657988035,
+        0.32703355410085333
+      ],
+      "fitness": -1.0
+    }
+  ],
+  "runs": [
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 329,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 377,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 273,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 311,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 342,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 367,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 411,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 557,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 284,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 495,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 492,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 397,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 527,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 511,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 501,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 288,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 460,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 450,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 375,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 300,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 510,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 522,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 464,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 381,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 468,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 454,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 423,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 415,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 465,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 598,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 505,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 336,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 498,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 489,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 407,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 336,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 501,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 196,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 425,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 325,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 458,
+      "Time to Capture sub": 290,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 216,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 361,
+      "Time to Capture sub": 335,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 327,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 547,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 513,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 374,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 510,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 395,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 351,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 514,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 182,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 142,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 487,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 368,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 402,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 454,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 300,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 488,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 305,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 299,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 441,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 523,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 503,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 405,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 305,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 335,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 333,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 478,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 321,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 343,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 482,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 531,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 336,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 434,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 312,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 300,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 490,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 388,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 379,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 378,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 324,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 338,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 326,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 353,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 298,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 311,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 348,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 466,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 476,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 468,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 412,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 359,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 355,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 356,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 495,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 482,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 378,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 452,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 263,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 486,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 475,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 1,
+      "Time to Detect sub": -1,
+      "Time to Capture sub": -1,
+      "How many red on goal": 1
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 377,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    },
+    {
+      "Time to Detect": 0,
+      "Time to Detect sub": 270,
+      "Time to Capture sub": -1,
+      "How many red on goal": 0
+    }
+  ]
+}
