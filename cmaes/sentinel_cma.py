@@ -1,3 +1,4 @@
+import argparse
 import datetime as dt
 import json
 import sys
@@ -107,4 +108,26 @@ def optimize_w_cma(rng_seed: int, pop_size: int, max_iters: int, n: int, trials:
 
 if __name__ == "__main__":
     register_dictlike_type("controller", "DiffuseSentinelController", DiffuseSentinelController)
-    optimize_w_cma(rng_seed=20, pop_size=10, max_iters=100, n=6, trials=1000)
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-n", type=int, default=6, help="Number of defending agents")
+    parser.add_argument("-rs", "--rng_seed", type=int, default=402, help="Seed for RNG")
+    parser.add_argument("-t", "--trials", type=int, default=1000, help="Number of trials")
+    parser.add_argument("-p", "--pop_size", type=int, default=10, help="Population size")
+    parser.add_argument("-mi", "--max_iters", type=int, default=100, help="Maximum number of iterations")
+
+    args = parser.parse_args()
+    print("CMA-ES run info:")
+    print(f"\tn         = {args.n}")
+    print(f"\trng_seed  = {args.rng_seed}")
+    print(f"\ttrials    = {args.trials}")
+    print(f"\tpop_size  = {args.pop_size}")
+    print(f"\tmax_iters = {args.max_iters}\n")
+
+    optimize_w_cma(
+        rng_seed=args.rng_seed,
+        pop_size=args.pop_size,
+        max_iters=args.max_iters,
+        n=args.n,
+        trials=args.trials
+    )
