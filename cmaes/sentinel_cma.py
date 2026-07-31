@@ -1,4 +1,5 @@
 import argparse
+from collections import Counter
 import datetime as dt
 import json
 import sys
@@ -50,7 +51,12 @@ def fitness_single(
 ):
     world = run_sim(config, show_gui=show_gui, start_paused=start_paused)
 
-    return world.metrics[0].value
+    out = world.metrics[0].value
+    stat = Counter()
+    for m in world.metrics:
+        stat[m.name] += m.value
+
+    return stat, out
 
 def fitness_wrapper(genomes: list[list[float]], n: int, iter_seed: int, trials: int):
     all_stats, all_rates = [], []
