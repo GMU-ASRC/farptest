@@ -8,6 +8,9 @@ import numpy as np
 SPEED_LIMIT = 0.3
 TURN_LIMIT = 0.6
 
+GOAL_ATTRACTION = 10
+DEFENDER_REPULSION = 1
+
 def smallest_angular_difference(a1, a2):
     a = a1 - a2
     return (a + np.pi) % (2*np.pi) - np.pi
@@ -21,9 +24,15 @@ class CustomEvader(AbstractController):
         for defender in [a for a in self.agent.world.population if a.team == "blue"]:
             bfovs: BinaryFOVSensor = defender.sensors[1]
             vec = self.get_nearest_point_of_sensor(bfovs)
+            mag = np.linalg.norm(vec)
             head = self.agent.position * zoom + pan
-            tail = (self.agent.position + vec) * zoom + pan
-            pygame.draw.line(screen, sight_color, head, tail)
+            tail = (self.agent.position + vec / mag) * zoom + pan
+            pygame.draw.line(screen, sight_color, head, tail, np.clip((3 / mag**2), 1, 5).astype(np.int16))
+        
+        if hasattr(self, "view_vector"):
+            head = self.agent.position * zoom + pan
+            tail = (self.agent.position + 2 * self.view_vector / np.linalg.norm(self.view_vector)) * zoom + pan
+            pygame.draw.line(screen, (100, 0, 200), head, tail)
     
     def __init__(self, agent=None, parent=None, **kwargs):
         super().__init__(agent, parent)
@@ -64,19 +73,19 @@ class CustomEvader(AbstractController):
             bfovs: BinaryFOVSensor = defender.sensors[1]
             vec = self.get_nearest_point_of_sensor(bfovs)
             mag = np.linalg.norm(vec)
-            vector_sum += (-1 / mag**2) / mag * vec
+            vector_sum += (-DEFENDER_REPULSION / mag**2) * vec / mag
         
         goal = agent.world.population[0]
         gvec = goal.position - pos
-        vector_sum += 10 * (gvec / np.linalg.norm(gvec))
+        vector_sum += GOAL_ATTRACTION * (gvec / np.linalg.norm(gvec))
 
         angle = np.atan2(vector_sum[1], vector_sum[0])
         sad = smallest_angular_difference(agent.angle, angle)
         
-        self.view_angle = angle
-        self.view_magnitude = np.linalg.norm(vector_sum)
+        self.view_vector = vector_sum
+
         if abs(sad) < np.pi / 2:
             v, w = SPEED_LIMIT, -np.sign(sad)
         else:
-            v, w = -SPEED_LIMIT, -np.sign(sad)
+            v, w = -SPEED_LIMIT, np.sign(sad)
         return np.clip(v, -SPEED_LIMIT, SPEED_LIMIT), np.clip(w, -TURN_LIMIT, TURN_LIMIT)  # DO NOT CHANGE THIS LINE

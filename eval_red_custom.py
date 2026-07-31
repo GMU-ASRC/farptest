@@ -22,7 +22,7 @@ def fitness_single(*args, **kwargs):
     return fitness_single_genome(*args, **kwargs)
 
 
-def generate_configs(rng_seed=20, n=6, trials=100):
+def generate_configs(rng_seed=20, n=6, trials=100, cycles=1000):
     seeds = np.random.default_rng(rng_seed).integers(
         0, 2**31, size=trials, dtype=np.int64
     )
@@ -37,6 +37,7 @@ def generate_configs(rng_seed=20, n=6, trials=100):
             evader="custom",
             seed=seed,
             n=n,
+            cycles=cycles
         )
         for seed in seeds
     ]
@@ -57,6 +58,9 @@ def parse_args():
     parser.add_argument(
         "-r", "--rng_seed", type=int, default=20, help="Seed for random number generator"
     )
+    parser.add_argument(
+        "-c", "--cycles", type=int, default=1000, help="Max number of steps per simulation"
+    )
     args = parser.parse_args()
 
     return args
@@ -74,8 +78,8 @@ if __name__ == "__main__":
 
 
     _, rate = test_mp(generate_configs(
-        rng_seed=args.rng_seed, n=args.agents, trials=args.samples),
-        fitness_single,
+        rng_seed=args.rng_seed, n=args.agents, trials=args.samples, cycles=args.cycles),
+        fitness_single
     )
     print(f"{'Capture' if METRIC == 'ttc' else 'Detection'} rate:\t"
           f"{100 * rate:.2f}%\t({int(rate * ns)}/{ns})")
