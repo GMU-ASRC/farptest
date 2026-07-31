@@ -1,0 +1,13 @@
+type: CustomEvader
+targeter_sensor_id: 0
+speed_pid:
+  p: 1.0
+  i: 0.0
+  d: 0.0
+  max: 0.3
+steer_pid:
+  p: 1.0
+  i: 0.0
+  d: 0.0
+  min: -1.0
+  max: 1.0
