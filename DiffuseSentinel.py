@@ -7,8 +7,9 @@ TURN_LIMIT = 0.6
 SECOND_STAGE = 200 # min 100, max 300
 HALF_ANGLE = 1.4 # min 0.6, max 2
 
+
 class DiffuseSentinelController(SentinelController):
-    def __init__(self, agent=None, parent=None):
+    def __init__(self, speed_limit=SPEED_LIMIT, turn_limit=TURN_LIMIT, agent=None, parent=None):
         super().__init__(agent, parent, speed_limit=SPEED_LIMIT, turn_limit=TURN_LIMIT)
         self.pseudoangle = 0 # track the agent angle internally
         self.pseudofirstseen = 0 # track the step at which a defender is seen, this is to stop the overlap prevention system from getting stuck

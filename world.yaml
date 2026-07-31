@@ -59,6 +59,11 @@ spawners:
       curving: true
       timeout_steps: 300
       step_scale: 1.0
+    <% elif blue_controller == 'diff_sent' %>
+    controller:
+      type: DiffuseSentinelController
+      speed_limit: <{g[0]}>
+      turn_limit: <{g[1]}>
     <% elif blue_controller == 'custom' %>
     controller:
       type: <{ blue_controller_class|default('CustomController') }>
