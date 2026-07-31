@@ -50,28 +50,33 @@ def find_cma(
     pop_size: int,
     max_iters: int,
     trials: int,
-    n=6,
+    n_range: list[int] = [],
 ):
     iter_seeds = np.random.default_rng(rng_seed).integers(
         0, 2**31, size=max_iters, dtype=np.int64)
 
-    cmaes = CMAES(
-        fitness=fitness_wrapper,
-        target=PERFECT_SCORE,
-        seed=rng_seed,
-        genome_size=4,
-        pop_size=pop_size,
-        max_iters=max_iters,
-    )
-    bests = []
+    bests, all_combined_stats = [], []
     try:
-        best_norm_genome, best_fitness = cmaes.evolve(n, iter_seeds, trials)
-        best_unnorm_genome = DECISION_VARS.from_unit_to_scaled(best_norm_genome)
-        bests.append({
-            "n": n,
-            "unnorm_genome": best_unnorm_genome,
-            "fitness": best_fitness,
-        })
+        for n in n_range:
+            cmaes = CMAES(
+                fitness=fitness_wrapper,
+                target=PERFECT_SCORE,
+                seed=rng_seed,
+                genome_size=4,
+                pop_size=pop_size,
+                max_iters=max_iters,
+            )
+            print(f"\n\n==================== n = {n} ====================\n\n")
+            best_norm_genome, best_fitness = cmaes.evolve(n, iter_seeds, trials)
+            best_unnorm_genome = DECISION_VARS.from_unit_to_scaled(best_norm_genome)
+            best_this_n = {
+                "n": n,
+                "unnorm_genome": best_unnorm_genome,
+                "fitness": best_fitness,
+            }
+            all_combined_stats.extend(cmaes.all_run_stats)
+            print(best_this_n)
+            bests.append(best_this_n)
 
     except FileNotFoundError as fnfe:
         print(fnfe)
@@ -86,7 +91,7 @@ def find_cma(
                 "max_iters": max_iters,
                 "var_configs": VAR_CONFIGS,
                 "bests": bests,
-                "runs": cmaes.all_run_stats,
+                "runs": all_combined_stats,
             }, f)
 
 
@@ -97,9 +102,9 @@ if __name__ == "__main__":
         "-n",
         "--n_range",
         type=int,
-        nargs="+",
+        nargs=3,
         required=True,
-        help="Number of defending agents",
+        help="-n <min> <max> <step>; Number of defending agents (interval inclusive)",
     )
     parser.add_argument("-rs", "--rng_seed", type=int, default=40, help="Seed for RNG")
     parser.add_argument(
@@ -118,21 +123,23 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     start = time.time()
-    assert len(args.n_range) == 1, "This is a temporary limit; you can only supply 1 value for n"
+    
 
     # Print helpful info
+    min_, max_, step = args.n_range
+    list_of_ns = list(range(min_, max_+1, step))
     print("CMA-ES run info:")
-    print(f"\tn        = {args.n_range}")
-    print(f"\trng_seed = {args.rng_seed}")
-    print(f"\ttrials     = {args.trials}")
-    print(f"\tpop_size   = {args.pop_size}")
-    print(f"\tmax_iters  = {args.max_iters}")
+    print(f"\tn         = range({args.n_range})")
+    print(f"\trng_seed  = {args.rng_seed}")
+    print(f"\ttrials    = {args.trials}")
+    print(f"\tpop_size  = {args.pop_size}")
+    print(f"\tmax_iters = {args.max_iters}")
 
     find_cma(
         rng_seed=args.rng_seed,
         pop_size=args.pop_size,
         max_iters=args.max_iters,
         trials=args.trials,
-        n=args.n_range[0],
+        n_range=list_of_ns,
     )
     print(f"Took {time.time() - start} seconds")

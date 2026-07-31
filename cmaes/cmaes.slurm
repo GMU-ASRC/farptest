@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ## Give your job a name to distinguish it from other jobs you run.
-#SBATCH --job-name=cmaes_farp02
+#SBATCH --job-name=controller_for_n_01
 
 ## General partitions: all-HiPri, bigmem-HiPri   --   (12 hour limit)
 ##                     all-LoPri, bigmem-LoPri, gpuq  (5 days limit)
@@ -24,7 +24,7 @@
 #SBATCH --mem=5GB        # Total memory needed per task (units: K,M,G,T)
 
 ## Specify how much time your job needs. (default: see partition above)
-#SBATCH --time=0-01:30  # Total time needed for job: Days-Hours:Minutes:Seconds
+#SBATCH --time=0-02:00  # Total time needed for job: Days-Hours:Minutes:Seconds
 
 #SBATCH --cpus-per-task 48
 
@@ -36,4 +36,4 @@ cd ~/cmaes_stuff/farptest/ || { echo "Unable to navigate to farptest"; exit 1; }
 source .venv/bin/activate || { echo "Unable to activate venv"; exit 1; }
 
 ## Load modules, insert code, and run your programs here.
-python cmaes/farpcma.py -n 6 -p 250 -mi 500
+python cmaes/farpcma.py -n 1 40 1 -rs 20 -t 10 -p 12 -mi 100
