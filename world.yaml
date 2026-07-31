@@ -10,6 +10,7 @@ agents:
   position: [5.0, 5.0]
   collides: Detect
   name: goal
+  team: goal
   agent_radius: 1.0
   target_teams:
   - red
@@ -35,6 +36,13 @@ spawners:
       bias: 0
       store_history: false
       target_team: red
+    - type: BinaryFOVSensor
+      theta: 0.45  # Vision Angle / 2 (Radians)
+      distance: 1.0  # meters. previously 2.55
+      show: true
+      bias: 0
+      store_history: false
+      target_team: goal
     #%> set blue_controller = blue_controller|default('binary')
     <% if blue_controller == 'binary' %>
     controller:
