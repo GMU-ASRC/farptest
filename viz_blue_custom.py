@@ -18,7 +18,7 @@ configs = [
         m=METRIC,
         blue_controller='custom',
         blue_controller_class=args.blue_controller,
-        evader="none",
+        evader="pid",
         seed=seed,
         n=args.agents,
     )
