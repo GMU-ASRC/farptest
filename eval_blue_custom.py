@@ -18,7 +18,7 @@ def fitness_single(*args, **kwargs):
     return fitness_single_genome(*args, **kwargs)
 
 
-def generate_configs(rng_seed=20, n=6, trials=100):
+def generate_configs(rng_seed=20, n=6, trials=100, blue_controller_class="CustomController"):
     seeds = np.random.default_rng(rng_seed).integers(
         0, 2**31, size=trials, dtype=np.int64
     )
@@ -28,7 +28,7 @@ def generate_configs(rng_seed=20, n=6, trials=100):
             cwd / "world.yaml",
             m=METRIC,
             blue_controller='custom',
-            blue_controller_class=blue_controller,
+            blue_controller_class=blue_controller_class,
             evader="pid",
             seed=seed,
             n=n,
@@ -40,7 +40,7 @@ def generate_configs(rng_seed=20, n=6, trials=100):
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "-b", "--blue_controller", type=str, default='CustomController',
+        "-b", "--blue_controller_class", type=str, default='CustomController',
         help="Path to blue controller",
     )
     parser.add_argument(
@@ -59,13 +59,13 @@ def parse_args():
 
 if __name__ == "__main__":
     args = parse_args()
-    controller = args.blue_controller
+    controller = args.blue_controller_class
     print(f"Testing controller: {controller} \twith {args.agents} agents")
     print(f"Base Seed: {args.rng_seed}")
     ns = args.samples
 
     _, rate = test_mp(generate_configs(
-        rng_seed=args.rng_seed, n=args.agents, trials=args.samples),
+        rng_seed=args.rng_seed, n=args.agents, trials=args.samples, blue_controller_class=args.blue_controller_class),
         fitness_single,
     )
     print(f"{'Capture' if METRIC == 'ttc' else 'Detection'} rate:\t"
