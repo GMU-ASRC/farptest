@@ -12,7 +12,7 @@ class CMAES:
         seed: int = 20,
         genome_size: int = 4,
         pop_size: int = 10,
-        max_iters: int | None = 10
+        max_iters: int = 10
     ):
         assert callable(fitness), "The fitness function must be callable"
         self.fitness = fitness
