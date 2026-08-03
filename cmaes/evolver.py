@@ -85,7 +85,8 @@ class Evolver:
         }
         print(self.options)
         assert genome_size == len(var_bounds)
-        self.var_config = VarConfig(var_bounds)
+        self.var_config_dict = var_bounds
+        self.var_config = VarConfig(self.var_config_dict)
         x0 = []
         if center is None:
             x0 = [0.5 for _ in range(genome_size)]
@@ -137,7 +138,7 @@ class Evolver:
                 self.es.disp()
 
             self.best_info = {
-                "best": self.var_config.from_unit_to_scaled(self.es.result.xbest),
+                "best_unnorm": self.var_config.from_unit_to_scaled(self.es.result.xbest),
                 "best_fitness": self.es.result.fbest
             }
             iters += 1
