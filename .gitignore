@@ -8,6 +8,9 @@
 .vscode/settings.json
 *Zone.Identifier
 
+# Sublime stuff
+*.sublime*
+
 # Ignore Experiment Files
 git.sh
 
