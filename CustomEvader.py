@@ -12,7 +12,7 @@ TURN_LIMIT = 0.6
 
 GOAL_ATTRACTION = 20
 DEFENDER_REPULSION = 1
-PROJECTION_DELTA = 10
+PROJECTION_DELTA = 20
 
 def smallest_angular_difference(a1, a2):
     a = a1 - a2
@@ -98,8 +98,7 @@ class CustomEvader(AbstractController):
         theta = t * w
         d = 2 * r * np.sin(theta / 2)
         d_angle = theta / 2
-        # print("r", r, "d", d, "theta", theta, "cos(θ/2)", np.sin(theta/2))
-        # exit()
+
         return d * np.sign(v) * vectorize(defender.angle + d_angle), theta
 
     def project_sensor(self, sensor: BinaryFOVSensor, delta_steps):
@@ -147,7 +146,7 @@ class CustomEvader(AbstractController):
         minimum = min(options, key=lambda v : np.sum(np.square(v)))
         if not check_inside: # this happens by default
             return minimum
-        else:
+        else: # this reverses the direction of the return vector if self is inside the predicted sensing cone
             return -minimum if in_arc and np.dot(self_to_sensor_origin, self_to_sensor_origin) < sensor.r**2 else minimum
 
 
@@ -155,11 +154,12 @@ class CustomEvader(AbstractController):
         pos = agent.position
         vector_sum = np.array([0, 0], dtype=np.float64)
         for defender in [a for a in agent.world.population if a.team == "blue"]:
+            # repulse sensing cones
             bfovs: BinaryFOVSensor = defender.sensors[1]
             vec = self.get_nearest_point_of_sensor(bfovs)
             mag = np.linalg.norm(vec)
             vector_sum -= (DEFENDER_REPULSION / mag**2) * vec / mag
-
+            # repulse predicted sensing cones
             predicted_sensor: BinaryFOVSensor = self.project_sensor(defender.sensors[1], PROJECTION_DELTA)
             p_vec = self.get_nearest_point_of_sensor(predicted_sensor, check_inside=True)
             p_mag = np.linalg.norm(p_vec)
