@@ -1,3 +1,4 @@
+from swarmsim.util.collider.AABB import AABB
 from swarmsim.world.RectangularWorld import RectangularWorld
 from swarmsim.agent.MazeAgent import MazeAgent
 from swarmsim.sensors.BinaryFOVSensor import BinaryFOVSensor, vectorize, turn, project, lineCircleIntersect
@@ -17,17 +18,35 @@ def smallest_angular_difference(a1, a2):
 
 class CustomEvader(AbstractController):
     def draw(self, screen, offset=((0, 0), 1.0)):
+        if not self.agent.is_highlighted:
+            return
         pan, zoom = np.asarray(offset[0]), np.asarray(offset[1])
 
-        sight_color = (200, 100, 0)
 
         for defender in [a for a in self.agent.world.population if a.team == "blue"]:
+            # draw line to closest point of agent view cone
             bfovs: BinaryFOVSensor = defender.sensors[1]
             vec = self.get_nearest_point_of_sensor(bfovs)
             mag = np.linalg.norm(vec)
             head = self.agent.position * zoom + pan
-            tail = (self.agent.position + vec / mag) * zoom + pan
-            pygame.draw.line(screen, sight_color, head, tail, np.clip((3 / mag**2), 1, 5).astype(np.int16))
+            tail = (self.agent.position + vec) * zoom + pan
+            pygame.draw.line(screen, (200, 100, 0), head, tail, np.clip((3 / mag**2), 1, 5).astype(np.int16))
+            # draw agent's view cone
+            magnitude = bfovs.r
+            head = np.asarray(defender.getPosition()) * zoom + pan
+            e_left, e_right = bfovs.getSectorVectors()
+            e_left, e_right = np.asarray(e_left[:2]), np.asarray(e_right[:2])
+            tail_l = head + magnitude * e_left * zoom
+            tail_r = head + magnitude * e_right * zoom
+            pygame.draw.line(screen, (255, 0, 0), head, tail_l)
+            pygame.draw.line(screen, (255, 0, 0), head, tail_r)
+            width = max(1, round(0.01 * zoom))
+            # pygame.draw.circle(screen, sight_color + (50,), head, self.r * zoom, width)
+            # draw the arc of the sensor cone
+            range_bbox = AABB.from_center_wh(head, bfovs.r * 2 * zoom)
+            langle = defender.angle + bfovs.angle + bfovs.theta
+            rangle = defender.angle + bfovs.angle - bfovs.theta
+            pygame.draw.arc(screen, (255, 0, 0) + (50,), range_bbox.to_rect(), -langle, -rangle, width)
         
         if hasattr(self, "view_vector"):
             head = self.agent.position * zoom + pan
