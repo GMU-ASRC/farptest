@@ -13,7 +13,7 @@ class CustomController(SentinelController):
     def get_v_w(self, detected):
         if self.stage == 1:
             v, w = SPEED_LIMIT, -TURN_LIMIT/2
-            if 30 < self.pseudostep and not self.agent.sensors[2].current_state:
+            if 1 < self.pseudostep and not self.agent.sensors[2].current_state:
                 self.stage = 2
         else:
             
