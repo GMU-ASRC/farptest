@@ -6,11 +6,11 @@ load_all_controllers()
 # print(f"Testing genome: {genome} \twith {args.agents} agents")
 ns = args.samples
 
-configs = generate_configs(trials=ns, rng_seed=args.rng_seed, n=args.agents)
+configs = generate_configs(trials=1, rng_seed=args.rng_seed, n=args.agents)
 
 successes = []
 for c in configs:
-    _, success = fitness_single(c, show_gui=True, start_paused=False)
+    _, success = fitness_single(c, show_gui=True, start_paused=True)
     successes.append(success)
 
 rate = 1 - sum(successes) / len(configs)
