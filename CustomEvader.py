@@ -12,7 +12,7 @@ TURN_LIMIT = 0.6
 
 GOAL_ATTRACTION = 20
 DEFENDER_REPULSION = 1
-PROJECTION_DELTA = 20
+PROJECTION_DELTA = 15
 
 def smallest_angular_difference(a1, a2):
     a = a1 - a2
