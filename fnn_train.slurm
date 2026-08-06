@@ -34,7 +34,6 @@
 
 cd ~/cmaes_stuff/farptest/ || { echo "Unable to navigate to farptest"; exit 1; }
 source .venv/bin/activate || { echo "Unable to activate venv"; exit 1; }
-cd cmaes/ || { echo "Unable to navigate to cmaes sub folder"; exit 1; }
 
 ## Load modules, insert code, and run your programs here.
 python evonn_main.py
