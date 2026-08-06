@@ -1,5 +1,3 @@
-from tokenize import endpats
-
 from numpy.typing import NDArray
 from swarmsim.agent.control.AbstractController import AbstractController
 from swarmsim.sensors.BinaryFOVSensor import BinaryFOVSensor
@@ -17,11 +15,6 @@ def project(a, b):
 
 def turn(p1, p2):
     return p1[0] * p2[1] - p2[0] * p1[1]
-
-def getSectorVectors(angle, span):
-    leftBorder = vectorize(angle + span)
-    rightBorder = vectorize(angle - span)
-    return np.append(leftBorder, 0), np.append(rightBorder, 0)
 
 def colinearPointSegmentIntersect(seg: np.ndarray, point: np.ndarray, segsq = None):
     if not segsq:
@@ -74,7 +67,25 @@ def segmentCircleIntersectionPoints(segPs: np.ndarray, center: np.ndarray, radiu
     globalIntersectionPoints = [p + origin for p in onSegmentIntersectionPoints]
     return globalIntersectionPoints
 
-def sectorAABB(origin, r, start_angle, end_angle) -> tuple[float, float, float, float]:
+def seg_seg_intersection_point(seg_a: NDArray, seg_b: NDArray):
+    if not segSegIntersect(seg_a, seg_b):
+        return None
+
+    start_a, end_a = seg_a
+    start_b, end_b = seg_b
+    m_a, m_b = end_a - start_a, end_b - start_b
+
+    # if abs(np.linalg.det(mat)) <= 1e-5:
+    det = m_a[0] * (-m_b[1]) - m_a[1] * (-m_b[0])
+    if abs(det) <= 1e-5:
+        return None
+
+    mat = [ [m_a[0], -m_b[0]], [m_a[1], -m_b[1]] ]
+    # solutions
+    s1, s2 = np.linalg.inv(mat) @ np.array(start_b - start_a)
+    return start_a + s1 * (end_a - start_a)
+
+def sector_aabb_not_sure_if_it_works(origin, r, start_angle, end_angle) -> tuple[float, float, float, float]:
     xc, yc = origin
     # Ensure start_angle < end_angle
     if end_angle < start_angle:
@@ -111,46 +122,48 @@ def sectorAABB(origin, r, start_angle, end_angle) -> tuple[float, float, float, 
 
     return (min_x, min_y, max_x, max_y)
 
-def sectorRectIntersection(rect, sensor_origin, r, angle, span) -> bool:
-    # TODO: handle the case where the sector is fully enclosed within the rect
-
+def sensor_rect_intersection(rect, def_angle, sensor, world) -> bool:
     x, y, w, h = rect
     points = [(x, y), (x+w, y), (x+w,y+h), (x, y+h)]
 
-    e_left, e_right = getSectorVectors(angle, span)
-    e_left, e_right = np.asarray(e_left[:2]), np.asarray(e_right[:2])
-    radiusSq = r * r
+    e_left, e_right = sensor.getSectorVectors()
+    e_left, e_right = e_left[:2], e_right[:2]
+    radiusSq = sensor.r * sensor.r
 
     # Early exit if entire aabb is enclosed in rect
-    minx, miny, maxx, maxy = sectorAABB(sensor_origin, r, angle + span, angle - span)
+    minx, miny, maxx, maxy = sensor.getAARectContainingSector(world)
     x, y, w, h = rect
     if (x < minx < maxx < x + w) and (y < miny < maxy < y + h):
         return True
 
+    origin = sensor.position
+    angle, span = def_angle + sensor.bias, sensor.theta
     for i in range(-1, len(points) - 1):
         p1 = points[i]
         p2 = points[i + 1]
         segment = np.array([p1, p2])
         cont = False
-        for p in segmentCircleIntersectionPoints(segment, sensor_origin, r):
-            if sectorPointIntersect(sensor_origin, angle + span, angle - span, p):
+        for p in segmentCircleIntersectionPoints(segment, origin, sensor.r):
+            if sectorPointIntersect(origin, angle + span, angle - span, p):
                 return True
 
         if cont:
             break
 
-        if segSegIntersect(segment, np.array([sensor_origin, sensor_origin + e_left[:2] * r])):
+        if segSegIntersect(segment, np.array([origin, origin + e_left[:2] * sensor.r])):
             return True
 
-        p2Dist = sensor_origin - p2
-        if np.dot(p2Dist, p2Dist) <= radiusSq and sectorPointIntersect(sensor_origin, angle + span, angle - span, p2):
+        p2Dist = origin - p2
+        if np.dot(p2Dist, p2Dist) <= radiusSq and sectorPointIntersect(origin, angle + span, angle - span, p2):
             return True
 
-    return False
+    # return False
+
+    # TODO: handle the case where the sector is fully enclosed within the rect
+    raise NotImplementedError("handle the case where the sector is fully enclosed within the rect")
+
 
 def aabb_overlap_2d(a, b) -> bool:
-    # return (a[0] <= b[3] and a[2] >= b[0] and
-    #         a[1] <= b[3] and a[3] >= b[1])
     return (a[0] <= b[2] and a[2] >= b[0] and
             a[1] <= b[3] and a[3] >= b[1])
 
@@ -174,7 +187,7 @@ class CustomEvader(AbstractController):
 
         self.cell_size = np.array((cell_size, cell_size))
         self.grid = np.zeros((rows, cols), dtype=np.float32)
-        self.cells = np.zeros((rows, cols), dtype=np.bool)
+        self.cells = np.zeros((rows, cols), dtype=np.int16)
         self.occupied_color = (255, 0, 0)
         self.empty_color = (100, 100, 100)
         self.cell_render_fill_pct = 0.8
@@ -182,7 +195,6 @@ class CustomEvader(AbstractController):
         self.first = True
 
     def get_actions(self, agent):
-        self.cells.fill(False)
         self.compute_occupation()
         return (V, W)
 
@@ -230,20 +242,110 @@ class CustomEvader(AbstractController):
 
 
                 surf_pos = np.array((c, r)) * surf_cell_size + padding
-                color = self.occupied_color if self.cells[r][c] else self.empty_color
+                color = self.empty_color
+                if self.cells[r][c] == 1:
+                    color = self.occupied_color
+                elif self.cells[r][c] == 2:
+                    color = "#ff00ff"
+
                 pygame.draw.rect(surface, color, (*surf_pos, *surf_fill_size))
 
-                # mx, my, Mx, My = np.array((*pos, *(pos + self.cell_size)))
-                # mx = mx * zoom + pan[0]
-                # my = my * zoom + pan[1]
-                # Mx = Mx * zoom + pan[0]
-                # My = My * zoom + pan[1]
-                # pygame.draw.rect(screen, "#0000ff", (mx, my, Mx - mx, My - my), width=1)
+
+                # --- RAY CASTING: DEBUG VIEW ---
+                # tl = np.array((0, r)) * surf_cell_size
+                # miny, maxy = tl[1], tl[1] + surf_cell_size[1]
+                # ray_start_x, ray_end_x = tl[0], tl[0] + (cols-1) * surf_cell_size[0]
+                # ray_h = miny + 0.5 * surf_cell_size[1]
+                # pygame.draw.line(surface, "#0000ff", tl, (tl[0] + cols * surf_cell_size[0], ray_h), width=2)
+
 
         surface.set_alpha(128)
         screen.blit(surface, self.tl * zoom + pan)
 
     def compute_occupation(self):
+        self.cells.fill(0)
+        # self.compute_occupation_v1()
+        self.compute_occupation_v2()
+
+    def compute_occupation_v2(self):
+        world = self.agent.world
+        defenders = [a for a in world.population if a.team == "blue"]
+        combined_aabb, indiv_aabb = self.defender_sensor_aabb(defenders)
+
+        rows, cols = self.grid.shape
+        for r in range(rows):
+            for c in range(cols):
+                pos = self.tl + np.array((c, r)) * self.cell_size
+                cell_aabb = (*pos, *(pos + self.cell_size))
+
+                # Broad phase
+                if not aabb_overlap_2d(combined_aabb, cell_aabb):
+                    continue
+
+                # Narrow phase
+                self.send_rays(world, defenders, indiv_aabb, r, 0)
+                self.send_rays(world, defenders, indiv_aabb, r, 0.50)
+                self.send_rays(world, defenders, indiv_aabb, r, 1)
+                break
+
+    def send_rays(self, world, defenders, def_aabbs, r, ray_h_pct):
+        rows, cols = self.grid.shape
+
+        tl = self.tl + np.array((0, r)) * self.cell_size
+        miny, maxy = tl[1], tl[1] + self.cell_size[1]
+        ray_h_pct = np.clip(ray_h_pct, 0, 1)
+        ray_y = miny + ray_h_pct * self.cell_size[1]
+        ray_start_x, ray_end_x = tl[0], tl[0] + cols * self.cell_size[0]
+
+        for i, defender in enumerate(defenders):
+            sensor = defender.sensors[1]
+            # _, miny, _, maxy = sensor.getAARectContainingSector(world)
+            _, miny, _, maxy = def_aabbs[i]
+
+            # angle, span = defender.angle + sensor.bias, sensor.theta
+            # _, miny, _, maxy = sector_aabb_not_sure_if_it_works(sensor.position, sensor.r, angle + span, angle - span)
+
+            if not (miny <= ray_y <= maxy):
+                continue
+
+            ray_seg = np.array([(ray_start_x, ray_y), (ray_end_x, ray_y)])
+            points = segmentCircleIntersectionPoints(
+                segPs=ray_seg,
+                center=sensor.position,
+                radius=sensor.r
+            )
+
+            origin = sensor.position
+            e_left, e_right = sensor.getSectorVectors()
+            e_left, e_right = e_left[:2], e_right[:2]
+            for point in points:
+                if not (turn(point - origin, e_right) <= 0 and 0 <= turn(point - origin, e_left)):
+                    continue
+
+                c0, r0 = (point - self.tl) / self.cell_size
+                c0, r0 = int(c0), int(r0)
+                if 0 <= c0 < cols and 0 <= r0 < rows:
+                    self.cells[r0][c0] = 1
+
+            left_int = seg_seg_intersection_point(
+                seg_a=ray_seg,
+                seg_b=np.array([origin, origin + sensor.r * e_left])
+            )
+            right_int = seg_seg_intersection_point(
+                seg_a=ray_seg,
+                seg_b=np.array([origin, origin + sensor.r * e_right])
+            )
+            
+            for point in [left_int, right_int]:
+                if point is None:
+                    continue
+
+                c0, r0 = (point - self.tl) / self.cell_size
+                c0, r0 = int(c0), int(r0)
+                if 0 <= c0 < cols and 0 <= r0 < rows:
+                    self.cells[r0][c0] = 2
+
+    def compute_occupation_v1(self):
         world = self.agent.world
         defenders = [a for a in world.population if a.team == "blue"]
         combined_aabb, indiv_aabb = self.defender_sensor_aabb(defenders)
@@ -262,26 +364,20 @@ class CustomEvader(AbstractController):
                     intersection = sectorRectIntersection(
                         (*pos, *self.cell_size),
                         defender.position, sensor.r,
-                        defender.angle + sensor.angle, sensor.theta
+                        defender.angle + sensor.bias, sensor.theta
                     )
-                    self.cells[r][c] = intersection
+                    self.cells[r][c] = int(intersection)
                     if intersection:
                         break
 
     def defender_sensor_aabb(self, defenders) -> tuple[NDArray, NDArray]:
         world = self.agent.world
-        def_n = len(defenders)
 
-        sens_aabbs = np.zeros((def_n, 4))
+        sens_aabbs = np.zeros((len(defenders), 4))
         for i, defender in enumerate(defenders):
             sensor = defender.sensors[1]
-            angle = defender.angle + sensor.angle
-            aabb = sectorAABB(
-                origin=defender.position,
-                r=sensor.r,
-                start_angle=angle + sensor.theta,
-                end_angle=angle - sensor.theta,
-            )
+            angle = defender.angle + sensor.bias
+            aabb = sensor.getAARectContainingSector(world, aabb_padding=0.5 * self.cell_size[0])
             sens_aabbs[i] = aabb
 
         minx, miny = np.min(sens_aabbs.T[:2], axis=1)

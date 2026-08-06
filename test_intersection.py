@@ -4,9 +4,9 @@ from swarmsim.util.collider.AABB import AABB
 import pygame
 import numpy as np
 
-from CustomEvader import getSectorVectors, sectorAABB, sectorRectIntersection
+from CustomEvader import getSectorVectors, sector_aabb_not_sure_if_it_works, sectorRectIntersection
 
-def main():
+def sector_rect_intersection_test():
     pygame.init()
 
     # --- Config ---
@@ -20,7 +20,7 @@ def main():
     rect = (300, 250, 150, 150)
     sensor_origin = np.array((450, 300))
     radius = 100
-    angle, span = np.deg2rad(0), np.deg2rad(30)
+    angle, span = np.deg2rad(0), np.deg2rad(160)
 
     move_delta = np.array((5, 5))
     turn_delta = np.deg2rad(1)
@@ -64,7 +64,7 @@ def main():
 
         pygame.draw.rect(screen, "#8FB7D6", rect, width=2)
 
-        sab = sectorAABB(sensor_origin, radius, langle, rangle)
+        sab = sector_aabb_not_sure_if_it_works(sensor_origin, radius, langle, rangle)
         sr = (sab[0], sab[1], sab[2] - sab[0], sab[3] - sab[1])
         pygame.draw.rect(screen, "#ff0000", sr, width=1)
 
@@ -81,9 +81,5 @@ def main():
 
     pygame.quit()
 
-    print(sensor_origin, radius, langle, rangle)
-    print(sensor_origin, radius, langle/np.pi, rangle/np.pi)
-    print(sectorAABB(sensor_origin, radius, langle, rangle))
-
 if __name__ == "__main__":
-    main()
+    sector_rect_intersection_test()
