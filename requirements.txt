@@ -1,3 +1,4 @@
 tqdm
 swarmsim
 cma
+torch

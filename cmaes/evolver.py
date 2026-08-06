@@ -59,13 +59,14 @@ class Evolver:
     def __init__(self,
         genome_size: int,
         target: float,
-        var_bounds: dict[str, tuple[float, float]],
+        var_bounds: dict[str, tuple[float, float]] | None = None,
+        center: list[float] | None = None,
         seed: int = 20,
         pop_size: int = 10,
         max_iters: int = 10,
-        center: list[float] | None = None,
         optim_dir: Literal["min", "max"] = "min",
         eval_mode: Literal["single", "batch"] = "batch",
+        cmaes_options: dict | None = None
     ):
         self.seed = seed
         assert optim_dir in ["min", "max"]
@@ -83,15 +84,24 @@ class Evolver:
             "seed": self.seed,
             "popsize": pop_size,
         }
+        if cmaes_options is not None:
+            self.options.update(cmaes_options)
+
         print(self.options)
-        assert genome_size == len(var_bounds)
-        self.var_config_dict = var_bounds
-        self.var_config = VarConfig(self.var_config_dict)
-        x0 = []
-        if center is None:
-            x0 = [0.5 for _ in range(genome_size)]
+
+        if var_bounds is None:
+            self.var_config_dict = {}
+            self.var_config = None
         else:
+            assert genome_size == len(var_bounds)
+            self.var_config_dict = var_bounds
+            self.var_config = VarConfig(self.var_config_dict)
+
+        x0 = []
+        if center is not None and self.var_config is not None:
             x0 = self.var_config.from_scaled_to_unit(center)
+        else:
+            x0 = [0.5 for _ in range(genome_size)]
 
         self.es = cma.CMAEvolutionStrategy(x0=x0, sigma0=0.25, options=self.options)
         self.best_info = {}

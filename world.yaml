@@ -51,6 +51,10 @@ spawners:
       curving: true
       timeout_steps: 300
       step_scale: 1.0
+    <% elif blue_controller == 'farpnn' %>
+    controller:
+      type: CustomController
+      genome: <{g}>
     <% elif blue_controller == 'custom' %>
     controller:
       type: <{ blue_controller_class|default('CustomController') }>
