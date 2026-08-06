@@ -18,7 +18,7 @@ def fitness_single(*args, **kwargs):
     return fitness_single_genome(*args, **kwargs)
 
 
-def generate_configs(rng_seed=20, n=6, trials=100):
+def generate_configs(rng_seed=20, n=6, trials=100, **kwargs):
     seeds = np.random.default_rng(rng_seed).integers(
         0, 2**31, size=trials, dtype=np.int64
     )
@@ -32,6 +32,7 @@ def generate_configs(rng_seed=20, n=6, trials=100):
             evader="pid",
             seed=seed,
             n=n,
+            **kwargs,
         )
         for seed in seeds
     ]

@@ -55,6 +55,7 @@ spawners:
     <% elif blue_controller == 'custom' %>
     controller:
       type: <{ blue_controller_class|default('CustomController') }>
+      genome: <{ g }>
     <% endif %>
     team: blue
     agent_radius: !np 0.2 / 2
