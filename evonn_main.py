@@ -45,7 +45,7 @@ def main():
 
     # 5. Run the Evolutionary Optimization
     print("Starting CMA-ES neuroevolution search...")
-    searcher.run(150)
+    searcher.run(125)
 
     pd_logger.to_dataframe().to_csv("test.csv")
 
