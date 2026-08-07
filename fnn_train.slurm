@@ -21,7 +21,7 @@
 #SBATCH --ntasks=1  ##number of tasks to run
 
 ## Specify how much memory your job needs. (2G is the default)
-#SBATCH --mem=10GB        # Total memory needed per task (units: K,M,G,T)
+#SBATCH --mem=7GB        # Total memory needed per task (units: K,M,G,T)
 
 ## Specify how much time your job needs. (default: see partition above)
 #SBATCH --time=0-04:00  # Total time needed for job: Days-Hours:Minutes:Seconds
