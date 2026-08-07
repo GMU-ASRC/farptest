@@ -7,7 +7,6 @@ from evotorch.neuroevolution import NEProblem
 from evotorch.algorithms import CMAES
 from evotorch.logging import StdOutLogger
 
-from swarmsim import register_dictlike_type
 from eval_blue_custom import generate_configs, fitness_single
 from util import test_mp
 from CustomController import FarpRNN
@@ -15,14 +14,9 @@ from CustomController import FarpRNN
 
 # 2. Define the Fitness Evaluation Function
 def evaluate_network(fnn: FarpRNN) -> float:
-    """
-    Evaluates the neural network on a synthetic dataset.
-    Returns a scalar fitness score (higher is better).
-    """
-    
     _, rate = test_mp(
         generate_configs(
-            rng_seed=torch.seed(), n=6, trials=100,
+            rng_seed=torch.seed(), n=6, trials=300,
             blue_controller_class="CustomController",
             g=parameters_to_vector(fnn.parameters()).numpy()
         ),
