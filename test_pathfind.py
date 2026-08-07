@@ -12,7 +12,7 @@ def matrix_to_color_grid(matrix, walls, start, end, color_grid):
     start = grid.node(*start)
     end = grid.node(*end)
 
-    finder = AStarFinder(diagonal_movement=DiagonalMovement.never)
+    finder = AStarFinder(diagonal_movement=DiagonalMovement.always)
     path, runs = finder.find_path(start, end, grid)
 
     color_grid.fill(0x777777)

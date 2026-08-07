@@ -10,6 +10,10 @@ from swarmsim.agent.control.AbstractController import AbstractController
 
 V, W = 0.3, 0.6
 
+def smallest_angular_difference(a1, a2):
+    a = a1 - a2
+    return (a + np.pi) % (2*np.pi) - np.pi
+
 def vectorize(angle):
     return np.array((np.cos(angle), np.sin(angle)))
 
@@ -190,17 +194,40 @@ class CustomEvader(AbstractController):
 
         self.cell_size = np.array((cell_size, cell_size))
         self.cells = np.ones((rows, cols), dtype=np.uint32)
-        self.color_grid = np.zeros_like(self.cells)
         self.walls: list[tuple[int, int]] = []
+        self.path = []
         self.occupied_color = (255, 0, 0)
         self.empty_color = (100, 100, 100)
         self.cell_render_fill_pct = 0.8
 
+        self.color_grid = np.zeros_like(self.cells)
+        self.colors = {
+            "path" : pygame.Color(0xff, 0x00, 0xff, 0xff),
+            "open" : pygame.Color(0xff, 0x33, 0x33, 0x33),
+            "wall" : pygame.Color(0xff, 0xff, 0x00, 0x00),
+            # "open" : pygame.Color(255, 255, 255, 255),
+            # "wall" : pygame.Color(0, 0, 0, 255),
+            "start": pygame.Color(0xff, 0x00, 0xff, 0x00),
+            "end"  : pygame.Color(0xff, 0xff, 0x00, 0x00)
+        }
+
         self.first = True
 
     def get_actions(self, agent):
-        self.compute_occupation()
-        return (V, W)
+        self.cells.fill(1)
+        self.walls.clear()
+        # self.compute_occupation_v1()
+        self.compute_occupation_v2()
+        self.matrix_to_color_grid()
+
+        if len(self.path) == 0:
+            return (-V, 0)
+
+        curr_cell, next_cell = self.path[-1], self.path[-2]
+        cell_diff = np.array([next_cell.x - curr_cell.x, next_cell.y - curr_cell.y])
+        req_w = -smallest_angular_difference(self.agent.angle, np.arctan2(cell_diff[1], cell_diff[0]))
+
+        return (V, np.clip(req_w, -W, W))
 
     def draw(self, screen, offset):
         # if not self.agent.is_highlighted:
@@ -267,13 +294,6 @@ class CustomEvader(AbstractController):
         surface.set_alpha(128)
         screen.blit(surface, self.tl * zoom + pan)
 
-    def compute_occupation(self):
-        self.cells.fill(1)
-        self.walls.clear()
-        # self.compute_occupation_v1()
-        self.compute_occupation_v2()
-        self.matrix_to_color_grid()
-
     def compute_occupation_v2(self):
         world = self.agent.world
         defenders = [a for a in world.population if a.team == "blue"]
@@ -290,9 +310,11 @@ class CustomEvader(AbstractController):
                     continue
 
                 # Narrow phase
-                self.send_rays(world, defenders, indiv_aabb, r, 0)
+                # self.send_rays(world, defenders, indiv_aabb, r, 0)
+                self.send_rays(world, defenders, indiv_aabb, r, 0.20)
                 self.send_rays(world, defenders, indiv_aabb, r, 0.50)
-                self.send_rays(world, defenders, indiv_aabb, r, 1)
+                self.send_rays(world, defenders, indiv_aabb, r, 0.80)
+                # self.send_rays(world, defenders, indiv_aabb, r, 1)
                 break
 
     def send_rays(self, world, defenders, def_aabbs, r, ray_h_pct):
@@ -350,7 +372,7 @@ class CustomEvader(AbstractController):
                     self.walls.append((c0, r0))
                     # self.cells[r0][c0] = 2
 
-    def compute_occupation_v1(self):
+    def compute_occupation_v1_dont_use(self):
         world = self.agent.world
         defenders = [a for a in world.population if a.team == "blue"]
         combined_aabb, indiv_aabb = self.defender_sensor_aabb(defenders)
@@ -391,6 +413,26 @@ class CustomEvader(AbstractController):
         return (np.array((minx, miny, maxx, maxy)), sens_aabbs)
 
     def matrix_to_color_grid(self):
+        # Apply wall weights
+        weight = np.array([
+            [2, 2, 2, 2, 2],
+            [2, 4, 4, 4, 2],
+            [2, 4, 6, 4, 2],
+            [2, 4, 4, 4, 2],
+            [2, 2, 2, 2, 2],
+        ], dtype=self.cells.dtype) * 10
+
+        # Original: (r, c)
+        # Padded: (r+1, c+1)
+        padded = np.pad(self.cells, pad_width=2, mode="constant", constant_values=0)
+        for wc, wr in self.walls:
+            # padded[(wr-2)+2:(wr+3)+2, (wc-2)+2:(wc+3)+2] += weight
+            padded[wr:wr+5, wc:wc+5] += weight
+
+        # Remove padding, return back to original size
+        self.cells = padded[2:-2, 2:-2]
+        norm_grid = (self.cells - np.min(self.cells)) / (np.max(self.cells) - np.min(self.cells))
+
         for wn in self.walls:
             self.cells[wn[1]][wn[0]] = 0
 
@@ -403,18 +445,22 @@ class CustomEvader(AbstractController):
         start = grid.node(*start_pt)
         end = grid.node(*end_pt)
 
-        finder = AStarFinder(diagonal_movement=DiagonalMovement.never)
-        path, runs = finder.find_path(start, end, grid)
+        finder = AStarFinder(diagonal_movement=DiagonalMovement.always)
+        self.path, runs = finder.find_path(start, end, grid)
 
-        self.color_grid.fill(0xff777777)
-        for pn in path:
-            self.color_grid[pn.y][pn.x] = 0xff00ffff
+        rows, cols = self.cells.shape
+        for r in range(rows):
+            for c in range(cols):
+                self.color_grid[r][c] = self.colors["open"].lerp(self.colors["wall"], norm_grid[r][c])
+
+        for pn in self.path:
+            self.color_grid[pn.y][pn.x] = self.colors["path"]
 
         for wc in self.walls:
-            self.color_grid[wc[1]][wc[0]] = 0xff333333
+            self.color_grid[wc[1]][wc[0]] = self.colors["wall"]
 
-        self.color_grid[start.y][start.x] = 0xff00ff00
-        self.color_grid[end.y][end.x] = 0xffff0000
+        self.color_grid[start.y][start.x] = self.colors["start"]
+        self.color_grid[end.y][end.x] = self.colors["end"]
 
     def point_to_index(self, point) -> tuple[int, int] | None:
         rows, cols = self.cells.shape
