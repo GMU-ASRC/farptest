@@ -13,6 +13,8 @@ TURN_LIMIT = 0.6
 GOAL_ATTRACTION = 20
 DEFENDER_REPULSION = 1
 PROJECTION_DELTA = 15
+ATTACK_POINT_DISTANCE = 3.5
+DIVE_TRIGGER_DISTANCE = 1
 
 def smallest_angular_difference(a1, a2):
     a = a1 - a2
@@ -42,6 +44,16 @@ class CustomEvader(AbstractController):
         if not self.agent.is_highlighted:
             return
         pan, zoom = np.asarray(offset[0]), np.asarray(offset[1])
+
+        if self.stage == 1:
+            cen = self.get_defender_centroid()
+            pygame.draw.circle(screen, (255, 255, 0, 50), cen * zoom + pan, 0.1 * zoom, 4)
+            goal_pos = self.agent.world.population[0].position
+            head = goal_pos * zoom + pan
+            tail = (goal_pos + self.defense_vec) * zoom + pan
+            pygame.draw.line(screen, (255, 255, 0, 50), head, tail, 4)
+            attack_point = goal_pos + ATTACK_POINT_DISTANCE * -self.defense_vec / np.linalg.norm(self.defense_vec)
+            pygame.draw.circle(screen, (255, 0, 0, 50), attack_point * zoom + pan, 0.1 * zoom, 4)
 
         # draw lines to closest points on defenders
         for defender in [a for a in self.agent.world.population if a.team == "blue"]:
@@ -79,14 +91,47 @@ class CustomEvader(AbstractController):
     
     def __init__(self, agent=None, parent=None, **kwargs):
         super().__init__(agent, parent)
+        self.stage = 1
+        self.defense_vec = np.array([0, 0], dtype=np.float64)
+        self.defender_positions = {}
+        self.defender_positions_prev = {}
 
     def point_normal_to_segment(self, segvec, point):
         orthovec = np.array([segvec[1], -segvec[0]])
         return np.sign(turn(orthovec, segvec - point)) != np.sign(turn(orthovec, -point))
 
+    def calculate_defender_v_w(self, defender: MazeAgent):
+        step = self.agent.world.total_steps
+        if defender.name not in self.defender_positions or self.defender_positions[defender.name][2] < step:
+            if defender.name in self.defender_positions:
+                self.defender_positions_prev[defender.name] = self.defender_positions[defender.name]
+            self.defender_positions[defender.name] = (np.array(defender.position), defender.angle, step)
+        
+        curr = self.defender_positions[defender.name]
+        prev = self.defender_positions_prev[defender.name] if defender.name in self.defender_positions_prev else curr
+        
+        theta = curr[1] - prev[1]
+        w = theta / self.agent.world.dt
+
+        delta_pos = curr[0] - prev[0]
+        d = np.linalg.norm(delta_pos)
+
+        if d == 0:
+            return 0, w
+        
+        if theta == 0:
+            v = d / self.agent.world.dt
+            return v, w
+
+        r = d / (2 * np.sin(theta / 2))
+        sproj = np.dot(vectorize(defender.angle), delta_pos) / np.dot(delta_pos, delta_pos)
+        v = r * w * np.sign(sproj)
+        return v, w
+        
+
     def predict_agent_delta(self, defender: MazeAgent, delta_steps):
         t = self.agent.world.dt * delta_steps
-        v, w = defender.controller.get_actions(defender)
+        v, w = self.calculate_defender_v_w(defender)
         if v == 0: # no speed
             return np.array([0, 0]), w * t
         v_vec = v * vectorize(defender.angle)
@@ -96,9 +141,9 @@ class CustomEvader(AbstractController):
         # defender will travel on a circular path, we can use geometry to compute where it will be if v and w hold
         r = abs(v / w)
         theta = t * w
-        d = 2 * r * np.sin(theta / 2)
         d_angle = theta / 2
-
+        d = 2 * r * np.sin(d_angle)
+        
         return d * np.sign(v) * vectorize(defender.angle + d_angle), theta
 
     def project_sensor(self, sensor: BinaryFOVSensor, delta_steps):
@@ -149,33 +194,66 @@ class CustomEvader(AbstractController):
         else: # this reverses the direction of the return vector if self is inside the predicted sensing cone
             return -minimum if in_arc and np.dot(self_to_sensor_origin, self_to_sensor_origin) < sensor.r**2 else minimum
 
+    def get_defender_centroid(self):
+        defender_positions = np.array([a.position for a in self.agent.world.population if a.team == "blue"], dtype=np.float64)
+        return np.mean(defender_positions, axis=0)
+
+    def get_v_w_for_angle(self, angle):
+        sad = smallest_angular_difference(self.agent.angle, angle)
+            
+        if abs(sad) < np.pi / 2:
+            return SPEED_LIMIT, -np.sign(sad)
+        else:
+            return -SPEED_LIMIT, np.sign(sad)
 
     def get_actions(self, agent: MazeAgent):
-        pos = agent.position
-        vector_sum = np.array([0, 0], dtype=np.float64)
-        for defender in [a for a in agent.world.population if a.team == "blue"]:
-            # repulse sensing cones
-            bfovs: BinaryFOVSensor = defender.sensors[1]
-            vec = self.get_nearest_point_of_sensor(bfovs)
-            mag = np.linalg.norm(vec)
-            vector_sum -= (DEFENDER_REPULSION / mag**2) * vec / mag
-            # repulse predicted sensing cones
-            predicted_sensor: BinaryFOVSensor = self.project_sensor(defender.sensors[1], PROJECTION_DELTA)
-            p_vec = self.get_nearest_point_of_sensor(predicted_sensor, check_inside=True)
-            p_mag = np.linalg.norm(p_vec)
-            vector_sum -= (DEFENDER_REPULSION / p_mag**2) * p_vec / p_mag
-        
-        goal = agent.world.population[0]
-        gvec = goal.position - pos
-        vector_sum += GOAL_ATTRACTION * (gvec / np.linalg.norm(gvec))
-
-        angle = np.atan2(vector_sum[1], vector_sum[0])
-        sad = smallest_angular_difference(agent.angle, angle)
-        
-        self.view_vector = vector_sum
-
-        if abs(sad) < np.pi / 2:
-            v, w = SPEED_LIMIT, -np.sign(sad)
+        if self.stage == 1:
+            pos = agent.position
+            cen = self.get_defender_centroid()
+            goal_pos = agent.world.population[0].position
+            vec_to_goal = goal_pos - pos
+            self.defense_vec += agent.world.dt * (cen - goal_pos)
+            attack_point = goal_pos + ATTACK_POINT_DISTANCE * -self.defense_vec / np.linalg.norm(self.defense_vec)
+            vec_to_attack_point = attack_point - pos
+            vtg_msq = np.dot(vec_to_goal, vec_to_goal)
+            vtap_msq = np.dot(vec_to_attack_point, vec_to_attack_point)
+            tan_nav = vtg_msq < vtap_msq
+            if tan_nav:
+                vtg_mag = np.sqrt(vtg_msq)
+                inside_atkpd = vtg_mag < ATTACK_POINT_DISTANCE
+                if inside_atkpd:
+                    v, w = self.get_v_w_for_angle(np.atan2(vec_to_goal[1], vec_to_goal[0]) + (np.pi / 2) * np.sign(turn(vec_to_goal, vec_to_attack_point)))
+                else:
+                    theta = np.arcsin(ATTACK_POINT_DISTANCE / vtg_mag) * np.sign(turn(vec_to_goal, vec_to_attack_point))
+                    angle_to_tan_point = np.atan2(vec_to_goal[1], vec_to_goal[0]) + theta
+                    v, w = self.get_v_w_for_angle(angle_to_tan_point)
+            else:
+                v, w = self.get_v_w_for_angle(np.atan2(vec_to_attack_point[1], vec_to_attack_point[0]))
+            if vtap_msq < DIVE_TRIGGER_DISTANCE**2:
+                self.stage = 2
         else:
-            v, w = -SPEED_LIMIT, np.sign(sad)
+            pos = agent.position
+            vector_sum = np.array([0, 0], dtype=np.float64)
+            for defender in [a for a in agent.world.population if a.team == "blue"]:
+                # repulse sensing cones
+                bfovs: BinaryFOVSensor = defender.sensors[1]
+                vec = self.get_nearest_point_of_sensor(bfovs)
+                mag = np.linalg.norm(vec)
+                vector_sum -= (DEFENDER_REPULSION / mag**2) * vec / mag
+                # repulse predicted sensing cones
+                predicted_sensor: BinaryFOVSensor = self.project_sensor(defender.sensors[1], PROJECTION_DELTA)
+                p_vec = self.get_nearest_point_of_sensor(predicted_sensor, check_inside=True)
+                p_mag = np.linalg.norm(p_vec)
+                vector_sum -= (DEFENDER_REPULSION / p_mag**2) * p_vec / p_mag
+            
+            goal = agent.world.population[0]
+            gvec = goal.position - pos
+            vector_sum += GOAL_ATTRACTION * (gvec / np.linalg.norm(gvec))
+            
+            self.view_vector = vector_sum
+
+            angle = np.atan2(vector_sum[1], vector_sum[0])
+            
+            v, w = self.get_v_w_for_angle(angle)
+        
         return np.clip(v, -SPEED_LIMIT, SPEED_LIMIT), np.clip(w, -TURN_LIMIT, TURN_LIMIT)  # DO NOT CHANGE THIS LINE
