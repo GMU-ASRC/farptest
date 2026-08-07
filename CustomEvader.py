@@ -299,11 +299,7 @@ class CustomEvader(AbstractController):
 
         for i, defender in enumerate(defenders):
             sensor = defender.sensors[1]
-            # _, miny, _, maxy = sensor.getAARectContainingSector(world)
             _, miny, _, maxy = def_aabbs[i]
-
-            # angle, span = defender.angle + sensor.bias, sensor.theta
-            # _, miny, _, maxy = sector_aabb_not_sure_if_it_works(sensor.position, sensor.r, angle + span, angle - span)
 
             if not (miny <= ray_y <= maxy):
                 continue
