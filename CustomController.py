@@ -33,7 +33,14 @@ class CustomController(AbstractController):
         self.model = FarpRNN()
 
         if genome is None:
-            raise NotImplementedError()
+            g = torch.tensor([  3.6984,  10.4825,  -6.1933,  -4.0966,  -0.6312,  -7.0232, -14.4090,
+         -1.6235,   2.2066,  -0.7314,   2.7778,   0.6396, -10.4244,   2.8760,
+          5.3073,  -0.8869,  -4.8985,   5.0579,  -1.5696,  -1.0510,  -3.6404,
+          1.6608,   5.8362,  -3.5595,  -1.3666,  -0.0415,   1.9167,  -3.1388,
+          9.8562,   1.2687,  14.7881,   3.2982,   8.8745,  -7.4220,  -2.0406,
+          0.5301,  -3.0271,   1.4108,   5.7679,  -5.4854,  -8.6641,  -2.8596,
+         -5.0980,  -9.9118,   7.6231,   3.1581])
+            # raise NotImplementedError()
         else:
             if isinstance(genome[0], str):
                 g = torch.from_numpy(np.fromstring(genome[0], sep=' ')).float()

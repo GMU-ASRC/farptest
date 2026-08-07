@@ -16,7 +16,7 @@ from CustomController import FarpRNN
 def evaluate_network(fnn: FarpRNN) -> float:
     _, rate = test_mp(
         generate_configs(
-            rng_seed=torch.seed(), n=6, trials=300,
+            rng_seed=torch.seed(), n=6, trials=100,
             blue_controller_class="CustomController",
             g=parameters_to_vector(fnn.parameters()).numpy()
         ),
@@ -37,7 +37,6 @@ def main():
     searcher = CMAES(
         problem,
         stdev_init=1.0,
-        popsize=3,
     )
 
     # Attach a logger to print progress every 10 generations
