@@ -6,7 +6,7 @@ load_all_controllers()
 # print(f"Testing genome: {genome} \twith {args.agents} agents")
 ns = args.samples
 
-configs = generate_configs(trials=ns, rng_seed=args.rng_seed, n=args.agents)
+configs = generate_configs(trials=ns, rng_seed=args.rng_seed, n=args.agents, blue_controller_class=args.blue_controller_class)
 
 successes = []
 for c in configs:

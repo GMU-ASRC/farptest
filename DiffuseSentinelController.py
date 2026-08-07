@@ -4,8 +4,8 @@ import numpy as np
 
 SPEED_LIMIT = 0.3
 TURN_LIMIT = 0.6
-SECOND_STAGE = 200 # min 100, max 300
-HALF_ANGLE = 1.4 # min 0.6, max 2
+SECOND_STAGE = 117 # min 100, max 300
+HALF_ANGLE = 1.44 # min 0.6, max 2
 
 class DiffuseSentinelController(SentinelController):
     def __init__(self, agent=None, parent=None):
