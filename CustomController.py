@@ -11,12 +11,13 @@ VMAX, WMAX = SPEED_LIMIT, TURN_LIMIT
 MAX_BOUND = torch.Tensor((VMAX, WMAX))
 MIN_BOUND = -MAX_BOUND
 SENS_WINDOW = 3
+INPUT_COUNT = 1 + SENS_WINDOW
 
 
 class FarpRNN(nn.Module):
     def __init__(self):
         super().__init__()
-        self.rnn = nn.RNN(input_size=SENS_WINDOW, hidden_size=4, num_layers=1, batch_first=True)
+        self.rnn = nn.RNN(input_size=INPUT_COUNT, hidden_size=4, num_layers=1, batch_first=True)
         self.linear = nn.Linear(in_features=4, out_features=2)
 
     def forward(self, x, h0=None):
@@ -56,7 +57,7 @@ class CustomController(AbstractController):
     def get_actions(self, agent): # type: ignore
         detected = float(agent.sensors[self.sensor_id].current_state != 0)
         output, _ = self.model(
-            torch.tensor([*self.sens_hist[-SENS_WINDOW:], self.pseudo_step]).float().view(1, 1, 1+SENS_WINDOW)
+            torch.tensor([*self.sens_hist[-SENS_WINDOW:], self.pseudo_step]).float().view(1, 1, INPUT_COUNT)
         )
         self.sens_hist.append(detected)
         self.pseudo_step += 1
