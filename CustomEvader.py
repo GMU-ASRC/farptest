@@ -1,9 +1,12 @@
 from numpy.typing import NDArray
-from swarmsim.agent.control.AbstractController import AbstractController
-from swarmsim.sensors.BinaryFOVSensor import BinaryFOVSensor
-
 import numpy as np
 import pygame
+from pathfinding.core.diagonal_movement import DiagonalMovement
+from pathfinding.core.grid import Grid
+from pathfinding.finder.a_star import AStarFinder
+
+from swarmsim.sensors.BinaryFOVSensor import BinaryFOVSensor
+from swarmsim.agent.control.AbstractController import AbstractController
 
 V, W = 0.3, 0.6
 
@@ -186,8 +189,9 @@ class CustomEvader(AbstractController):
         self.tl = center - np.array((self.side_len * 0.5, self.side_len * 0.5))
 
         self.cell_size = np.array((cell_size, cell_size))
-        self.grid = np.zeros((rows, cols), dtype=np.float32)
-        self.cells = np.zeros((rows, cols), dtype=np.int16)
+        self.cells = np.ones((rows, cols), dtype=np.uint32)
+        self.color_grid = np.zeros_like(self.cells)
+        self.walls: list[tuple[int, int]] = []
         self.occupied_color = (255, 0, 0)
         self.empty_color = (100, 100, 100)
         self.cell_render_fill_pct = 0.8
@@ -205,7 +209,7 @@ class CustomEvader(AbstractController):
         world = self.agent.world
 
         defenders = [a for a in world.population if a.team == "blue"]
-        rows, cols = self.grid.shape
+        rows, cols = self.cells.shape
 
         pan, zoom = np.asarray(offset[0]), np.asarray(offset[1])
 
@@ -233,6 +237,7 @@ class CustomEvader(AbstractController):
         surf_cell_size = self.cell_size * zoom
         surf_fill_size = self.cell_render_fill_pct * surf_cell_size
         padding = 0.5 * (surf_cell_size - surf_fill_size)
+
         for r in range(rows):
             for c in range(cols):
                 # pos = self.tl + np.array((c, r)) * self.cell_size
@@ -242,14 +247,14 @@ class CustomEvader(AbstractController):
 
 
                 surf_pos = np.array((c, r)) * surf_cell_size + padding
-                color = self.empty_color
-                if self.cells[r][c] == 1:
-                    color = self.occupied_color
-                elif self.cells[r][c] == 2:
-                    color = "#ff00ff"
+                # color = self.empty_color
+                # if self.cells[r][c] == 1:
+                #     color = self.occupied_color
+                # elif self.cells[r][c] == 2:
+                #     color = "#ff00ff"
+                # pygame.draw.rect(surface, color, (*surf_pos, *surf_fill_size))
 
-                pygame.draw.rect(surface, color, (*surf_pos, *surf_fill_size))
-
+                pygame.draw.rect(surface, int(self.color_grid[r][c]), (*surf_pos, *surf_fill_size))
 
                 # --- RAY CASTING: DEBUG VIEW ---
                 # tl = np.array((0, r)) * surf_cell_size
@@ -263,16 +268,18 @@ class CustomEvader(AbstractController):
         screen.blit(surface, self.tl * zoom + pan)
 
     def compute_occupation(self):
-        self.cells.fill(0)
+        self.cells.fill(1)
+        self.walls.clear()
         # self.compute_occupation_v1()
         self.compute_occupation_v2()
+        self.matrix_to_color_grid()
 
     def compute_occupation_v2(self):
         world = self.agent.world
         defenders = [a for a in world.population if a.team == "blue"]
         combined_aabb, indiv_aabb = self.defender_sensor_aabb(defenders)
 
-        rows, cols = self.grid.shape
+        rows, cols = self.cells.shape
         for r in range(rows):
             for c in range(cols):
                 pos = self.tl + np.array((c, r)) * self.cell_size
@@ -289,7 +296,7 @@ class CustomEvader(AbstractController):
                 break
 
     def send_rays(self, world, defenders, def_aabbs, r, ray_h_pct):
-        rows, cols = self.grid.shape
+        rows, cols = self.cells.shape
 
         tl = self.tl + np.array((0, r)) * self.cell_size
         miny, maxy = tl[1], tl[1] + self.cell_size[1]
@@ -321,7 +328,8 @@ class CustomEvader(AbstractController):
                 c0, r0 = (point - self.tl) / self.cell_size
                 c0, r0 = int(c0), int(r0)
                 if 0 <= c0 < cols and 0 <= r0 < rows:
-                    self.cells[r0][c0] = 1
+                    self.walls.append((c0, r0))
+                    # self.cells[r0][c0] = 1
 
             left_int = seg_seg_intersection_point(
                 seg_a=ray_seg,
@@ -339,14 +347,15 @@ class CustomEvader(AbstractController):
                 c0, r0 = (point - self.tl) / self.cell_size
                 c0, r0 = int(c0), int(r0)
                 if 0 <= c0 < cols and 0 <= r0 < rows:
-                    self.cells[r0][c0] = 2
+                    self.walls.append((c0, r0))
+                    # self.cells[r0][c0] = 2
 
     def compute_occupation_v1(self):
         world = self.agent.world
         defenders = [a for a in world.population if a.team == "blue"]
         combined_aabb, indiv_aabb = self.defender_sensor_aabb(defenders)
 
-        rows, cols = self.grid.shape
+        rows, cols = self.cells.shape
         for r in range(rows):
             for c in range(cols):
                 pos = self.tl + np.array((c, r)) * self.cell_size
@@ -373,9 +382,44 @@ class CustomEvader(AbstractController):
         for i, defender in enumerate(defenders):
             sensor = defender.sensors[1]
             angle = defender.angle + sensor.bias
-            aabb = sensor.getAARectContainingSector(world, aabb_padding=0.5 * self.cell_size[0])
+            aabb = sensor.getAARectContainingSector(
+                world, aabb_padding=0.25 * self.cell_size[0])
             sens_aabbs[i] = aabb
 
         minx, miny = np.min(sens_aabbs.T[:2], axis=1)
         maxx, maxy = np.max(sens_aabbs.T[2:], axis=1)
         return (np.array((minx, miny, maxx, maxy)), sens_aabbs)
+
+    def matrix_to_color_grid(self):
+        for wn in self.walls:
+            self.cells[wn[1]][wn[0]] = 0
+
+        grid = Grid(matrix=self.cells)
+        end_pt, start_pt = self.point_to_index(self.agent.position), self.point_to_index(self.goal.position)
+        # start_pt, end_pt = self.point_to_index(self.agent.position), self.point_to_index(self.goal.position)
+        assert start_pt is not None
+        assert end_pt is not None
+
+        start = grid.node(*start_pt)
+        end = grid.node(*end_pt)
+
+        finder = AStarFinder(diagonal_movement=DiagonalMovement.never)
+        path, runs = finder.find_path(start, end, grid)
+
+        self.color_grid.fill(0xff777777)
+        for pn in path:
+            self.color_grid[pn.y][pn.x] = 0xff00ffff
+
+        for wc in self.walls:
+            self.color_grid[wc[1]][wc[0]] = 0xff333333
+
+        self.color_grid[start.y][start.x] = 0xff00ff00
+        self.color_grid[end.y][end.x] = 0xffff0000
+
+    def point_to_index(self, point) -> tuple[int, int] | None:
+        rows, cols = self.cells.shape
+        c0, r0 = (point - self.tl) / self.cell_size
+        if 0 <= c0 < cols and 0 <= r0 < rows:
+            return (int(c0), int(r0))
+        else:
+            return None
