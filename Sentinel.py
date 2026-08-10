@@ -20,7 +20,7 @@ def setinel_draw(self, screen, offset=((0, 0), 1.0)):
     pan, zoom = np.asarray(offset[0]), np.asarray(offset[1])
     
     if hasattr(self, "cangle"):        
-        pygame.draw.line(screen, pygame.colordict.THECOLORS["violet"], self.agent.pos * zoom + pan, self.agent.pos * zoom + pan + 100*vec_magnitude(self.cvec)*np.array([np.cos(internal_to_real_angle(self.cangle)), np.sin(internal_to_real_angle(self.cangle))]))
+        pygame.draw.line(screen, pygame.colordict.THECOLORS["violet"], self.agent.pos * zoom + pan, (self.agent.pos + vec_magnitude(self.cvec)*np.array([np.cos(internal_to_real_angle(self.cangle)), np.sin(internal_to_real_angle(self.cangle))])) * zoom + pan)
     
     self = self.agent.sensors[0]
 
