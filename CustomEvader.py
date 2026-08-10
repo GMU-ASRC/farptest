@@ -15,6 +15,7 @@ DEFENDER_REPULSION = 1
 PROJECTION_DELTA = 15
 ATTACK_POINT_DISTANCE = 3.5
 DIVE_TRIGGER_DISTANCE = 1
+CENTROID_ADJUSTMENT_CUTOFF = 400
 
 def smallest_angular_difference(a1, a2):
     a = a1 - a2
@@ -95,6 +96,7 @@ class CustomEvader(AbstractController):
         self.defense_vec = np.array([0, 0], dtype=np.float64)
         self.defender_positions = {}
         self.defender_positions_prev = {}
+        self.pseudostep = 0
 
     def point_normal_to_segment(self, segvec, point):
         orthovec = np.array([segvec[1], -segvec[0]])
@@ -207,53 +209,55 @@ class CustomEvader(AbstractController):
             return -SPEED_LIMIT, np.sign(sad)
 
     def get_actions(self, agent: MazeAgent):
-        if self.stage == 1:
-            pos = agent.position
-            cen = self.get_defender_centroid()
-            goal_pos = agent.world.population[0].position
-            vec_to_goal = goal_pos - pos
-            self.defense_vec += agent.world.dt * (cen - goal_pos)
+        vector_sum = np.array([0, 0], dtype=np.float64)
+        pos = agent.position
+        cen = self.get_defender_centroid()
+        goal_pos = agent.world.population[0].position
+        vec_to_goal = goal_pos - pos
+
+        if self.stage == 1: # stage 1, attract towards attack point
+            if self.pseudostep < CENTROID_ADJUSTMENT_CUTOFF:
+                self.defense_vec += agent.world.dt * (cen - goal_pos)
             attack_point = goal_pos + ATTACK_POINT_DISTANCE * -self.defense_vec / np.linalg.norm(self.defense_vec)
             vec_to_attack_point = attack_point - pos
             vtg_msq = np.dot(vec_to_goal, vec_to_goal)
             vtap_msq = np.dot(vec_to_attack_point, vec_to_attack_point)
             tan_nav = vtg_msq < vtap_msq
-            if tan_nav:
+            if tan_nav: # if attack point is on the far side of the circle
                 vtg_mag = np.sqrt(vtg_msq)
                 inside_atkpd = vtg_mag < ATTACK_POINT_DISTANCE
-                if inside_atkpd:
-                    v, w = self.get_v_w_for_angle(np.atan2(vec_to_goal[1], vec_to_goal[0]) + (np.pi / 2) * np.sign(turn(vec_to_goal, vec_to_attack_point)))
-                else:
+                if inside_atkpd: # move tangentially when inside attack point distance
+                    move_vec = np.array([vec_to_goal[1], -vec_to_goal[0]]) * -np.sign(turn(vec_to_goal, vec_to_attack_point))
+                else: # when outside attack point distance, move towards tangent point
                     theta = np.arcsin(ATTACK_POINT_DISTANCE / vtg_mag) * np.sign(turn(vec_to_goal, vec_to_attack_point))
                     angle_to_tan_point = np.atan2(vec_to_goal[1], vec_to_goal[0]) + theta
-                    v, w = self.get_v_w_for_angle(angle_to_tan_point)
-            else:
-                v, w = self.get_v_w_for_angle(np.atan2(vec_to_attack_point[1], vec_to_attack_point[0]))
+                    move_vec = vectorize(angle_to_tan_point)
+            else: # go towards attack point
+                move_vec = vec_to_attack_point
             if vtap_msq < DIVE_TRIGGER_DISTANCE**2:
                 self.stage = 2
-        else:
-            pos = agent.position
-            vector_sum = np.array([0, 0], dtype=np.float64)
-            for defender in [a for a in agent.world.population if a.team == "blue"]:
-                # repulse sensing cones
-                bfovs: BinaryFOVSensor = defender.sensors[1]
-                vec = self.get_nearest_point_of_sensor(bfovs)
-                mag = np.linalg.norm(vec)
-                vector_sum -= (DEFENDER_REPULSION / mag**2) * vec / mag
-                # repulse predicted sensing cones
-                predicted_sensor: BinaryFOVSensor = self.project_sensor(defender.sensors[1], PROJECTION_DELTA)
-                p_vec = self.get_nearest_point_of_sensor(predicted_sensor, check_inside=True)
-                p_mag = np.linalg.norm(p_vec)
-                vector_sum -= (DEFENDER_REPULSION / p_mag**2) * p_vec / p_mag
-            
-            goal = agent.world.population[0]
-            gvec = goal.position - pos
-            vector_sum += GOAL_ATTRACTION * (gvec / np.linalg.norm(gvec))
-            
-            self.view_vector = vector_sum
-
-            angle = np.atan2(vector_sum[1], vector_sum[0])
-            
-            v, w = self.get_v_w_for_angle(angle)
+            vector_sum += GOAL_ATTRACTION * (move_vec / np.linalg.norm(move_vec))
+        else: # stage 2, attract towards goal
+            vector_sum += GOAL_ATTRACTION * (vec_to_goal / np.linalg.norm(vec_to_goal))
         
+        # apf repulse defender
+        for defender in [a for a in agent.world.population if a.team == "blue"]:
+            # repulse sensing cones
+            bfovs: BinaryFOVSensor = defender.sensors[1]
+            vec = self.get_nearest_point_of_sensor(bfovs)
+            mag = np.linalg.norm(vec)
+            vector_sum -= (DEFENDER_REPULSION / mag**2) * vec / mag
+            # repulse predicted sensing cones
+            predicted_sensor: BinaryFOVSensor = self.project_sensor(defender.sensors[1], PROJECTION_DELTA)
+            p_vec = self.get_nearest_point_of_sensor(predicted_sensor, check_inside=True)
+            p_mag = np.linalg.norm(p_vec)
+            vector_sum -= (DEFENDER_REPULSION / p_mag**2) * p_vec / p_mag
+        
+        
+        self.view_vector = vector_sum
+
+        angle = np.atan2(vector_sum[1], vector_sum[0])
+        v, w = self.get_v_w_for_angle(angle)
+    
+        self.pseudostep += 1
         return np.clip(v, -SPEED_LIMIT, SPEED_LIMIT), np.clip(w, -TURN_LIMIT, TURN_LIMIT)  # DO NOT CHANGE THIS LINE
