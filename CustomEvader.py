@@ -184,7 +184,7 @@ class CustomEvader(AbstractController):
         self.goal = self.agent.world.population[0]
         self.side_len = np.linalg.norm(self.goal.position - my_pos) + self.goal.radius
         # Additional padding
-        self.side_len *= 1.2
+        self.side_len *= 1.5
         ww, wh = np.array((self.side_len, self.side_len))
         cols, rows = np.array((ww, wh)) / cell_size
         cols, rows = int(cols), int(rows)
@@ -194,7 +194,7 @@ class CustomEvader(AbstractController):
 
         self.cell_size = np.array((cell_size, cell_size))
         self.cells = np.ones((rows, cols), dtype=np.uint32)
-        self.walls: list[tuple[int, int]] = []
+        self.wall_range: list[tuple[int, int, int]] = []
         self.path = []
         self.occupied_color = (255, 0, 0)
         self.empty_color = (100, 100, 100)
@@ -204,7 +204,7 @@ class CustomEvader(AbstractController):
         self.colors = {
             "path" : pygame.Color(0xff, 0x00, 0xff, 0xff),
             "open" : pygame.Color(0xff, 0x33, 0x33, 0x33),
-            "wall" : pygame.Color(0xff, 0xff, 0x00, 0x00),
+            "wall" : pygame.Color(0xff, 0xff, 0xff, 0x00),
             # "open" : pygame.Color(255, 255, 255, 255),
             # "wall" : pygame.Color(0, 0, 0, 255),
             "start": pygame.Color(0xff, 0x00, 0xff, 0x00),
@@ -215,10 +215,17 @@ class CustomEvader(AbstractController):
 
     def get_actions(self, agent):
         self.cells.fill(1)
-        self.walls.clear()
-        # self.compute_occupation_v1()
-        self.compute_occupation_v2()
-        self.matrix_to_color_grid()
+        self.wall_range.clear()
+        self.compute_occupation()
+
+        world = self.agent.world
+        defenders = [a for a in world.population if a.team == "blue"]
+        def_pos = np.asarray([d.position for d in defenders]).mean(axis=0)
+        v = def_pos - self.goal.position
+        vangle = np.arctan2(v[1], v[0])
+        target = self.goal.position + 0.75 * self.goal.radius * vectorize(vangle + np.pi)
+
+        self.matrix_to_color_grid(self.agent.position, target, reverse=True)
 
         if len(self.path) == 0:
             return (-V, 0)
@@ -294,7 +301,7 @@ class CustomEvader(AbstractController):
         surface.set_alpha(128)
         screen.blit(surface, self.tl * zoom + pan)
 
-    def compute_occupation_v2(self):
+    def compute_occupation(self):
         world = self.agent.world
         defenders = [a for a in world.population if a.team == "blue"]
         combined_aabb, indiv_aabb = self.defender_sensor_aabb(defenders)
@@ -312,21 +319,24 @@ class CustomEvader(AbstractController):
                 # Narrow phase
                 # self.send_rays(world, defenders, indiv_aabb, r, 0)
                 self.send_rays(world, defenders, indiv_aabb, r, 0.20)
-                self.send_rays(world, defenders, indiv_aabb, r, 0.50)
+                # self.send_rays(world, defenders, indiv_aabb, r, 0.50)
                 self.send_rays(world, defenders, indiv_aabb, r, 0.80)
                 # self.send_rays(world, defenders, indiv_aabb, r, 1)
                 break
 
-    def send_rays(self, world, defenders, def_aabbs, r, ray_h_pct):
+    def send_rays(self, world, defenders, def_aabbs, row, ray_h_pct):
         rows, cols = self.cells.shape
 
-        tl = self.tl + np.array((0, r)) * self.cell_size
+        tl = self.tl + np.array((0, row)) * self.cell_size
         miny, maxy = tl[1], tl[1] + self.cell_size[1]
         ray_h_pct = np.clip(ray_h_pct, 0, 1)
         ray_y = miny + ray_h_pct * self.cell_size[1]
         ray_start_x, ray_end_x = tl[0], tl[0] + cols * self.cell_size[0]
 
+        _range = []
         for i, defender in enumerate(defenders):
+            _range.clear()
+
             sensor = defender.sensors[1]
             _, miny, _, maxy = def_aabbs[i]
 
@@ -347,10 +357,9 @@ class CustomEvader(AbstractController):
                 if not (turn(point - origin, e_right) <= 0 and 0 <= turn(point - origin, e_left)):
                     continue
 
-                c0, r0 = (point - self.tl) / self.cell_size
-                c0, r0 = int(c0), int(r0)
-                if 0 <= c0 < cols and 0 <= r0 < rows:
-                    self.walls.append((c0, r0))
+                c0 = int(((point - self.tl) / self.cell_size)[0])
+                if 0 <= c0 < cols:
+                    _range.append(c0)
                     # self.cells[r0][c0] = 1
 
             left_int = seg_seg_intersection_point(
@@ -366,36 +375,19 @@ class CustomEvader(AbstractController):
                 if point is None:
                     continue
 
-                c0, r0 = (point - self.tl) / self.cell_size
-                c0, r0 = int(c0), int(r0)
-                if 0 <= c0 < cols and 0 <= r0 < rows:
-                    self.walls.append((c0, r0))
+                c0 = int(((point - self.tl) / self.cell_size)[0])
+                if 0 <= c0 < cols:
+                    _range.append(c0)
+
+                # c0, r0 = (point - self.tl) / self.cell_size
+                # c0, r0 = int(c0), int(r0)
+                # if 0 <= c0 < cols and 0 <= r0 < rows:
+                #     _range.append(c0)
+                    # self.wall_range.append((c0, r0))
                     # self.cells[r0][c0] = 2
 
-    def compute_occupation_v1_dont_use(self):
-        world = self.agent.world
-        defenders = [a for a in world.population if a.team == "blue"]
-        combined_aabb, indiv_aabb = self.defender_sensor_aabb(defenders)
-
-        rows, cols = self.cells.shape
-        for r in range(rows):
-            for c in range(cols):
-                pos = self.tl + np.array((c, r)) * self.cell_size
-                cell_aabb = (*pos, *(pos + self.cell_size))
-
-                if not aabb_overlap_2d(combined_aabb, cell_aabb):
-                    continue
-
-                for defender in defenders:
-                    sensor = defender.sensors[1]
-                    intersection = sectorRectIntersection(
-                        (*pos, *self.cell_size),
-                        defender.position, sensor.r,
-                        defender.angle + sensor.bias, sensor.theta
-                    )
-                    self.cells[r][c] = int(intersection)
-                    if intersection:
-                        break
+            if len(_range) > 0:
+                self.wall_range.append((row, np.min(_range), np.max(_range)))
 
     def defender_sensor_aabb(self, defenders) -> tuple[NDArray, NDArray]:
         world = self.agent.world
@@ -412,33 +404,38 @@ class CustomEvader(AbstractController):
         maxx, maxy = np.max(sens_aabbs.T[2:], axis=1)
         return (np.array((minx, miny, maxx, maxy)), sens_aabbs)
 
-    def matrix_to_color_grid(self):
+    def matrix_to_color_grid(self, start_pos, end_pos, reverse):
         # Apply wall weights
+        l0, l1, l2 = 8, 1, 0
         weight = np.array([
-            [2, 2, 2, 2, 2],
-            [2, 4, 4, 4, 2],
-            [2, 4, 6, 4, 2],
-            [2, 4, 4, 4, 2],
-            [2, 2, 2, 2, 2],
-        ], dtype=self.cells.dtype) * 10
+            [l2, l2, l2, l2, l2],
+            [l2, l1, l1, l1, l2],
+            [l2, l1, l0, l1, l2],
+            [l2, l1, l1, l1, l2],
+            [l2, l2, l2, l2, l2],
+        ], dtype=self.cells.dtype)
 
         # Original: (r, c)
         # Padded: (r+1, c+1)
         padded = np.pad(self.cells, pad_width=2, mode="constant", constant_values=0)
-        for wc, wr in self.walls:
+        for wr, wcs, wce in self.wall_range:
             # padded[(wr-2)+2:(wr+3)+2, (wc-2)+2:(wc+3)+2] += weight
-            padded[wr:wr+5, wc:wc+5] += weight
+            for wc in range(wcs, wce+1):
+                padded[wr:wr+5, wc:wc+5] += weight
 
         # Remove padding, return back to original size
         self.cells = padded[2:-2, 2:-2]
         norm_grid = (self.cells - np.min(self.cells)) / (np.max(self.cells) - np.min(self.cells))
 
-        for wn in self.walls:
-            self.cells[wn[1]][wn[0]] = 0
+        for wr, wcs, wce in self.wall_range:
+            self.cells[wr, wcs:wce+1].fill(0)
 
         grid = Grid(matrix=self.cells)
-        end_pt, start_pt = self.point_to_index(self.agent.position), self.point_to_index(self.goal.position)
-        # start_pt, end_pt = self.point_to_index(self.agent.position), self.point_to_index(self.goal.position)
+        if reverse:
+            start_pt, end_pt = self.point_to_index(end_pos), self.point_to_index(start_pos)
+        else:
+            start_pt, end_pt = self.point_to_index(start_pos), self.point_to_index(end_pos)
+
         assert start_pt is not None
         assert end_pt is not None
 
@@ -456,8 +453,8 @@ class CustomEvader(AbstractController):
         for pn in self.path:
             self.color_grid[pn.y][pn.x] = self.colors["path"]
 
-        for wc in self.walls:
-            self.color_grid[wc[1]][wc[0]] = self.colors["wall"]
+        for wr, wcs, wce in self.wall_range:
+            self.color_grid[wr, wcs:wce+1].fill(self.colors["wall"])
 
         self.color_grid[start.y][start.x] = self.colors["start"]
         self.color_grid[end.y][end.x] = self.colors["end"]
