@@ -8,6 +8,8 @@ from pathfinding.finder.a_star import AStarFinder
 from swarmsim.sensors.BinaryFOVSensor import BinaryFOVSensor
 from swarmsim.agent.control.AbstractController import AbstractController
 
+from Heatmap import Heatmap
+
 V, W = 0.3, 0.6
 
 def smallest_angular_difference(a1, a2):
@@ -174,295 +176,44 @@ def aabb_overlap_2d(a, b) -> bool:
     return (a[0] <= b[2] and a[2] >= b[0] and
             a[1] <= b[3] and a[3] >= b[1])
 
-
 class CustomEvader(AbstractController):
-    def __init__(self, agent, cell_size=0.2, parent=None):
+    def __init__(self, agent, parent=None):
         super().__init__(agent, parent)
-        assert agent is not None
 
-        my_pos = self.agent.position
         self.goal = self.agent.world.population[0]
-        self.side_len = np.linalg.norm(self.goal.position - my_pos) + self.goal.radius
-        # Additional padding
-        self.side_len *= 1.5
-        ww, wh = np.array((self.side_len, self.side_len))
-        cols, rows = np.array((ww, wh)) / cell_size
-        cols, rows = int(cols), int(rows)
-
-        center = 0.5 * self.goal.position + 0.5 * self.agent.position
-        self.tl = center - np.array((self.side_len * 0.5, self.side_len * 0.5))
-
-        self.cell_size = np.array((cell_size, cell_size))
-        self.cells = np.ones((rows, cols), dtype=np.uint32)
-        self.wall_range: list[tuple[int, int, int]] = []
-        self.path = []
-        self.occupied_color = (255, 0, 0)
-        self.empty_color = (100, 100, 100)
-        self.cell_render_fill_pct = 0.8
-
-        self.color_grid = np.zeros_like(self.cells)
-        self.colors = {
-            "path" : pygame.Color(0xff, 0x00, 0xff, 0xff),
-            "open" : pygame.Color(0xff, 0x33, 0x33, 0x33),
-            "wall" : pygame.Color(0xff, 0xff, 0xff, 0x00),
-            # "open" : pygame.Color(255, 255, 255, 255),
-            # "wall" : pygame.Color(0, 0, 0, 255),
-            "start": pygame.Color(0xff, 0x00, 0xff, 0x00),
-            "end"  : pygame.Color(0xff, 0xff, 0x00, 0x00)
-        }
-
-        self.first = True
+        self.dbg_center = self.agent.position + np.asarray([0.7, 0.6]) * (self.goal.position - self.agent.position)
+        self.dbg_radius = np.linalg.norm(self.goal.position - self.agent.position) * 0.5
+        self.dbg_radius += self.goal.radius
+        self.dbg_radius *= 1.1
+        self.dbg_rect = (
+            *(self.dbg_center - self.dbg_radius),
+            self.dbg_radius * 2,
+            self.dbg_radius * 2,
+        )
+        self.heatmap = Heatmap(rect=self.dbg_rect)
+        self.defenders = []
 
     def get_actions(self, agent):
-        self.cells.fill(1)
-        self.wall_range.clear()
-        self.compute_occupation()
-
-        world = self.agent.world
-        defenders = [a for a in world.population if a.team == "blue"]
-        def_pos = np.asarray([d.position for d in defenders]).mean(axis=0)
-        v = def_pos - self.goal.position
-        vangle = np.arctan2(v[1], v[0])
-        target = self.goal.position + 0.75 * self.goal.radius * vectorize(vangle + np.pi)
-
-        self.matrix_to_color_grid(self.agent.position, target, reverse=True)
-
-        if len(self.path) == 0:
-            return (-V, 0)
-
-        curr_cell, next_cell = self.path[-1], self.path[-2]
-        cell_diff = np.array([next_cell.x - curr_cell.x, next_cell.y - curr_cell.y])
-        req_w = -smallest_angular_difference(self.agent.angle, np.arctan2(cell_diff[1], cell_diff[0]))
-
-        return (V, np.clip(req_w, -W, W))
+        world = agent.world
+        self.defenders = [a for a in world.population if a.team == "blue"]
+        self.heatmap.update(world, self.defenders)
+        return 0., 0.
 
     def draw(self, screen, offset):
         # if not self.agent.is_highlighted:
         #     return
 
-        world = self.agent.world
-
-        defenders = [a for a in world.population if a.team == "blue"]
-        rows, cols = self.cells.shape
+        for d in self.defenders:
+            d.is_highlighted = True
 
         pan, zoom = np.asarray(offset[0]), np.asarray(offset[1])
-
-        for defender in defenders:
-            defender.is_highlighted = True
-
-        combined_aabb, _ = self.defender_sensor_aabb(defenders)
-        minx, miny, maxx, maxy = combined_aabb
-        min_coord = minx, miny
-        max_coord = maxx, maxy
-        # wminx, wminy, wmaxx, wmaxy = minx, miny, maxx, maxy
-        wminx, wminy = min_coord * zoom + pan
-        wmaxx, wmaxy = max_coord * zoom + pan
-        pygame.draw.rect(screen, "#00ff00", (
-            wminx, wminy, wmaxx - wminx, wmaxy - wminy
+        self.heatmap.draw(screen, zoom, pan)
+        pygame.draw.circle(
+            screen, "#ff00ff", self.dbg_center * zoom + pan, radius=self.dbg_radius * zoom, width=2)
+        pygame.draw.rect(screen, "#00ffff", (
+            self.dbg_rect[0] * zoom + pan[0],
+            self.dbg_rect[1] * zoom + pan[1],
+            self.dbg_rect[2] * zoom,
+            self.dbg_rect[3] * zoom,
         ), width=2)
 
-        surface_size = self.cell_size * np.array((cols, rows)) * zoom
-        if self.first:
-            print(surface_size)
-            print("tl:", self.tl)
-            self.first = False
-
-        surface = pygame.Surface(surface_size, pygame.SRCALPHA)
-        surf_cell_size = self.cell_size * zoom
-        surf_fill_size = self.cell_render_fill_pct * surf_cell_size
-        padding = 0.5 * (surf_cell_size - surf_fill_size)
-
-        for r in range(rows):
-            for c in range(cols):
-                # pos = self.tl + np.array((c, r)) * self.cell_size
-                # world_pos = pos * zoom + pan
-                # world_size = (self.cell_render_fill_pct * self.cell_size) * zoom
-                # world_pos = world_pos + 0.5 * (self.cell_size * zoom - world_size)
-
-
-                surf_pos = np.array((c, r)) * surf_cell_size + padding
-                # color = self.empty_color
-                # if self.cells[r][c] == 1:
-                #     color = self.occupied_color
-                # elif self.cells[r][c] == 2:
-                #     color = "#ff00ff"
-                # pygame.draw.rect(surface, color, (*surf_pos, *surf_fill_size))
-
-                pygame.draw.rect(surface, int(self.color_grid[r][c]), (*surf_pos, *surf_fill_size))
-
-                # --- RAY CASTING: DEBUG VIEW ---
-                # tl = np.array((0, r)) * surf_cell_size
-                # miny, maxy = tl[1], tl[1] + surf_cell_size[1]
-                # ray_start_x, ray_end_x = tl[0], tl[0] + (cols-1) * surf_cell_size[0]
-                # ray_h = miny + 0.5 * surf_cell_size[1]
-                # pygame.draw.line(surface, "#0000ff", tl, (tl[0] + cols * surf_cell_size[0], ray_h), width=2)
-
-
-        surface.set_alpha(128)
-        screen.blit(surface, self.tl * zoom + pan)
-
-    def compute_occupation(self):
-        world = self.agent.world
-        defenders = [a for a in world.population if a.team == "blue"]
-        combined_aabb, indiv_aabb = self.defender_sensor_aabb(defenders)
-
-        rows, cols = self.cells.shape
-        for r in range(rows):
-            for c in range(cols):
-                pos = self.tl + np.array((c, r)) * self.cell_size
-                cell_aabb = (*pos, *(pos + self.cell_size))
-
-                # Broad phase
-                if not aabb_overlap_2d(combined_aabb, cell_aabb):
-                    continue
-
-                # Narrow phase
-                # self.send_rays(world, defenders, indiv_aabb, r, 0)
-                self.send_rays(world, defenders, indiv_aabb, r, 0.20)
-                # self.send_rays(world, defenders, indiv_aabb, r, 0.50)
-                self.send_rays(world, defenders, indiv_aabb, r, 0.80)
-                # self.send_rays(world, defenders, indiv_aabb, r, 1)
-                break
-
-    def send_rays(self, world, defenders, def_aabbs, row, ray_h_pct):
-        rows, cols = self.cells.shape
-
-        tl = self.tl + np.array((0, row)) * self.cell_size
-        miny, maxy = tl[1], tl[1] + self.cell_size[1]
-        ray_h_pct = np.clip(ray_h_pct, 0, 1)
-        ray_y = miny + ray_h_pct * self.cell_size[1]
-        ray_start_x, ray_end_x = tl[0], tl[0] + cols * self.cell_size[0]
-
-        _range = []
-        for i, defender in enumerate(defenders):
-            _range.clear()
-
-            sensor = defender.sensors[1]
-            _, miny, _, maxy = def_aabbs[i]
-
-            if not (miny <= ray_y <= maxy):
-                continue
-
-            ray_seg = np.array([(ray_start_x, ray_y), (ray_end_x, ray_y)])
-            points = segmentCircleIntersectionPoints(
-                segPs=ray_seg,
-                center=sensor.position,
-                radius=sensor.r
-            )
-
-            origin = sensor.position
-            e_left, e_right = sensor.getSectorVectors()
-            e_left, e_right = e_left[:2], e_right[:2]
-            for point in points:
-                if not (turn(point - origin, e_right) <= 0 and 0 <= turn(point - origin, e_left)):
-                    continue
-
-                c0 = int(((point - self.tl) / self.cell_size)[0])
-                if 0 <= c0 < cols:
-                    _range.append(c0)
-                    # self.cells[r0][c0] = 1
-
-            left_int = seg_seg_intersection_point(
-                seg_a=ray_seg,
-                seg_b=np.array([origin, origin + sensor.r * e_left])
-            )
-            right_int = seg_seg_intersection_point(
-                seg_a=ray_seg,
-                seg_b=np.array([origin, origin + sensor.r * e_right])
-            )
-            
-            for point in [left_int, right_int]:
-                if point is None:
-                    continue
-
-                c0 = int(((point - self.tl) / self.cell_size)[0])
-                if 0 <= c0 < cols:
-                    _range.append(c0)
-
-                # c0, r0 = (point - self.tl) / self.cell_size
-                # c0, r0 = int(c0), int(r0)
-                # if 0 <= c0 < cols and 0 <= r0 < rows:
-                #     _range.append(c0)
-                    # self.wall_range.append((c0, r0))
-                    # self.cells[r0][c0] = 2
-
-            if len(_range) > 0:
-                self.wall_range.append((row, np.min(_range), np.max(_range)))
-
-    def defender_sensor_aabb(self, defenders) -> tuple[NDArray, NDArray]:
-        world = self.agent.world
-
-        sens_aabbs = np.zeros((len(defenders), 4))
-        for i, defender in enumerate(defenders):
-            sensor = defender.sensors[1]
-            angle = defender.angle + sensor.bias
-            aabb = sensor.getAARectContainingSector(
-                world, aabb_padding=0.25 * self.cell_size[0])
-            sens_aabbs[i] = aabb
-
-        minx, miny = np.min(sens_aabbs.T[:2], axis=1)
-        maxx, maxy = np.max(sens_aabbs.T[2:], axis=1)
-        return (np.array((minx, miny, maxx, maxy)), sens_aabbs)
-
-    def matrix_to_color_grid(self, start_pos, end_pos, reverse):
-        # Apply wall weights
-        l0, l1, l2 = 8, 1, 0
-        weight = np.array([
-            [l2, l2, l2, l2, l2],
-            [l2, l1, l1, l1, l2],
-            [l2, l1, l0, l1, l2],
-            [l2, l1, l1, l1, l2],
-            [l2, l2, l2, l2, l2],
-        ], dtype=self.cells.dtype)
-
-        # Original: (r, c)
-        # Padded: (r+1, c+1)
-        padded = np.pad(self.cells, pad_width=2, mode="constant", constant_values=0)
-        for wr, wcs, wce in self.wall_range:
-            # padded[(wr-2)+2:(wr+3)+2, (wc-2)+2:(wc+3)+2] += weight
-            for wc in range(wcs, wce+1):
-                padded[wr:wr+5, wc:wc+5] += weight
-
-        # Remove padding, return back to original size
-        self.cells = padded[2:-2, 2:-2]
-        norm_grid = (self.cells - np.min(self.cells)) / (np.max(self.cells) - np.min(self.cells))
-
-        for wr, wcs, wce in self.wall_range:
-            self.cells[wr, wcs:wce+1].fill(0)
-
-        grid = Grid(matrix=self.cells)
-        if reverse:
-            start_pt, end_pt = self.point_to_index(end_pos), self.point_to_index(start_pos)
-        else:
-            start_pt, end_pt = self.point_to_index(start_pos), self.point_to_index(end_pos)
-
-        assert start_pt is not None
-        assert end_pt is not None
-
-        start = grid.node(*start_pt)
-        end = grid.node(*end_pt)
-
-        finder = AStarFinder(diagonal_movement=DiagonalMovement.always)
-        self.path, runs = finder.find_path(start, end, grid)
-
-        rows, cols = self.cells.shape
-        for r in range(rows):
-            for c in range(cols):
-                self.color_grid[r][c] = self.colors["open"].lerp(self.colors["wall"], norm_grid[r][c])
-
-        for pn in self.path:
-            self.color_grid[pn.y][pn.x] = self.colors["path"]
-
-        for wr, wcs, wce in self.wall_range:
-            self.color_grid[wr, wcs:wce+1].fill(self.colors["wall"])
-
-        self.color_grid[start.y][start.x] = self.colors["start"]
-        self.color_grid[end.y][end.x] = self.colors["end"]
-
-    def point_to_index(self, point) -> tuple[int, int] | None:
-        rows, cols = self.cells.shape
-        c0, r0 = (point - self.tl) / self.cell_size
-        if 0 <= c0 < cols and 0 <= r0 < rows:
-            return (int(c0), int(r0))
-        else:
-            return None
