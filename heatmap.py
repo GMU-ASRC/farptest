@@ -6,6 +6,8 @@ from pathfinding.core.diagonal_movement import DiagonalMovement
 from pathfinding.core.grid import Grid
 from pathfinding.finder.a_star import AStarFinder
 
+from scipy.ndimage import gaussian_filter
+
 
 def project(a, b):
     return b * (np.dot(a, b) / np.dot(b, b))
@@ -76,7 +78,10 @@ def aabb_overlap_2d(a, b) -> bool:
 
 
 class Heatmap:
-    def __init__(self, rect: tuple[float, float, float, float], cell_size=0.2) -> None:
+    def __init__(self,
+        rect: tuple[float, float, float, float],
+        cell_size=0.2, decay_rate=0.8
+    ) -> None:
         self.rect = rect
         x, y, w, h = self.rect
         side_len = max(w, h)
@@ -87,48 +92,68 @@ class Heatmap:
 
         self.tl = np.asarray([x, y])
         self.cell_size = np.ones((2,)) * cell_size
-        self.cells = np.ones((rows, cols), dtype=np.uint32)
+        self.walls = np.zeros((rows, cols), dtype=np.int_)
+        self.cell_wts = np.zeros_like(self.walls)
         self.wall_range: list[tuple[int, int, int]] = []
         self.path = []
+        self.decay_rate = decay_rate
+
         self.occupied_color = (255, 0, 0)
         self.empty_color = (100, 100, 100)
         self.cell_render_fill_pct = 0.8
-
-        self.color_grid = np.zeros_like(self.cells)
+        self.color_grid = np.zeros_like(self.cell_wts)
         self.colors = {
-            "path" : pygame.Color(0xff, 0x00, 0xff, 0xff),
-            "open" : pygame.Color(0xff, 0x33, 0x33, 0x33),
-            "wall" : pygame.Color(0xff, 0xff, 0x00, 0x00),
-            "start": pygame.Color(0xff, 0x00, 0xff, 0x00),
-            "end"  : pygame.Color(0xff, 0xff, 0x00, 0x00)
+            # abgr
+            "path" : pygame.Color("#ff00ffff"),
+            "open" : pygame.Color("#ff333333"),
+            "wall" : pygame.Color("#ffff0000"),
+            "start": pygame.Color("#ff00ff00"),
+            "end"  : pygame.Color("#ffff0000"),
         }
 
     def point_to_index(self, point) -> tuple[int, int] | None:
-        rows, cols = self.cells.shape
+        rows, cols = self.cell_wts.shape
         c0, r0 = (point - self.tl) / self.cell_size
         if 0 <= c0 < cols and 0 <= r0 < rows:
             return (int(c0), int(r0))
         else:
             return None
 
-    def index_to_point(self, index: tuple[int, int]) -> NDArray | None:
-        rows, cols = self.cells.shape
-        c0, r0 = index
-        if 0 <= c0 < cols and 0 <= r0 < rows:
-            return self.tl + np.array((c0, r0)) * self.cell_size
+    def index_to_point(self, r: int, c: int) -> NDArray | None:
+        rows, cols = self.cell_wts.shape
+        if 0 <= c < cols and 0 <= r < rows:
+            return self.tl + np.array((c, r)) * self.cell_size
         else:
             return None
 
     def update(self, world, defenders):
-        self.cells.fill(1)
         self.wall_range.clear()
         self.compute_occupation(world, defenders)
-        # self.color_grid.fill(self.colors["open"])
-        self.matrix_to_color_grid()
+        
+        self.walls.fill(0)
+        for wr, wcs, wce in self.wall_range:
+            self.walls[wr, wcs:wce+1] = 1.
 
-    def draw(self, screen, zoom, pan, opacity=0.5):
+        curr_wts = gaussian_filter(self.walls.astype(np.float64), sigma=1, mode="constant")
+        self.cell_wts = curr_wts + self.decay_rate * self.cell_wts
+        self.cell_wts /= self.cell_wts.max()
 
-        rows, cols = self.cells.shape
+    def draw(self, screen, zoom, pan, goal, opacity=0.5):
+        self.color_grid.fill(self.colors["open"])
+        rows, cols = self.cell_wts.shape
+        for r in range(rows):
+            for c in range(cols):
+                self.color_grid[r][c] = self.colors["open"].lerp(
+                    self.colors["wall"], self.cell_wts[r][c])
+
+        for pn in self.path:
+            self.color_grid[pn.y][pn.x] = self.colors["path"]
+
+        for wr, wcs, wce in self.wall_range:
+            self.color_grid[wr, wcs:wce+1].fill(self.colors["wall"])
+
+
+        rows, cols = self.cell_wts.shape
         surface_size = self.cell_size * np.array((cols, rows)) * zoom
         surface = pygame.Surface(surface_size, pygame.SRCALPHA)
         surf_cell_size = self.cell_size * zoom
@@ -140,72 +165,45 @@ class Heatmap:
                 surf_pos = np.array((c, r)) * surf_cell_size + padding
                 pygame.draw.rect(surface, int(self.color_grid[r][c]), (*surf_pos, *surf_fill_size))
 
+        center, radius = goal.position, goal.radius * 1.2
+        vec = self.goal_heatmap_vector(center, radius)
+        vec = radius * vec / np.linalg.norm(vec)
+        pygame.draw.circle(screen, "#aaff00", center * zoom + pan, radius * zoom, width=2)
+        pygame.draw.line(screen, "#aaff00", center * zoom + pan, (center + vec) * zoom + pan, width=2)
+
         surface.set_alpha(int(opacity * 255.))
         screen.blit(surface, self.tl * zoom + pan)
 
-    def matrix_to_color_grid(self, start_pos=None, end_pos=None, reverse=True):
-        # Apply wall weights
-        l0, l1, l2 = 1.2, 1, 0
-        weight = np.array([
-            [l2, l2, l2, l2, l2],
-            [l2, l1, l1, l1, l2],
-            [l2, l1, l0, l1, l2],
-            [l2, l1, l1, l1, l2],
-            [l2, l2, l2, l2, l2],
-        ], dtype=self.cells.dtype)
+    def goal_heatmap_vector(self, goal_center, goal_radius):
+        center, radius = np.asarray(goal_center), goal_radius
+        goal_aabb = (*(center - radius), *(center + radius))
 
-        padded = np.pad(self.cells, pad_width=2, mode="constant", constant_values=0)
-        for wr, wcs, wce in self.wall_range:
-            for wc in range(wcs, wce+1):
-                padded[wr:wr+5, wc:wc+5] += weight
-
-        # Remove padding, return back to original size
-        self.cells = padded[2:-2, 2:-2]
-        norm_grid = (self.cells - self.cells.min()) / (self.cells.max() - self.cells.min())
-
-        for wr, wcs, wce in self.wall_range:
-            self.cells[wr, wcs:wce+1].fill(0)
-
-        should_pathfind = not (start_pos is None or end_pos is None)
-        if should_pathfind:
-            grid = Grid(matrix=self.cells)
-            if reverse:
-                start_pt, end_pt = self.point_to_index(end_pos), self.point_to_index(start_pos)
-            else:
-                start_pt, end_pt = self.point_to_index(start_pos), self.point_to_index(end_pos)
-
-            assert start_pt is not None
-            assert end_pt is not None
-
-            start = grid.node(*start_pt)
-            end = grid.node(*end_pt)
-
-            finder = AStarFinder(diagonal_movement=DiagonalMovement.always)
-            self.path, runs = finder.find_path(start, end, grid)
-
-        rows, cols = self.cells.shape
+        rows, cols = self.cell_wts.shape
+        sum_vec = np.zeros((2,))
         for r in range(rows):
             for c in range(cols):
-                self.color_grid[r][c] = self.colors["open"].lerp(
-                    self.colors["wall"], norm_grid[r][c])
+                pos = self.index_to_point(r, c)
+                assert pos is not None
+                cell_aabb = (*pos, *(pos + self.cell_size))
+                if not aabb_overlap_2d(goal_aabb, cell_aabb):
+                    continue
 
-        for pn in self.path:
-            self.color_grid[pn.y][pn.x] = self.colors["path"]
+                cell_center = pos + 0.5 * self.cell_size
+                dist = np.linalg.norm(cell_center - center)
+                if dist <= radius:
+                    mag = self.cell_wts[r][c]
+                    sum_vec += (cell_center - center) / dist * mag
 
-        for wr, wcs, wce in self.wall_range:
-            self.color_grid[wr, wcs:wce+1].fill(self.colors["wall"])
-
-        if should_pathfind:
-            self.color_grid[start.y][start.x] = self.colors["start"]
-            self.color_grid[end.y][end.x] = self.colors["end"]
+        return sum_vec
 
     def compute_occupation(self, world, defenders, ray_heights=[0.2, 0.8]):
         combined_aabb, indiv_aabb = self.defender_sensor_aabb(world, defenders)
 
-        rows, cols = self.cells.shape
+        rows, cols = self.cell_wts.shape
         for r in range(rows):
             for c in range(cols):
-                pos = self.tl + np.array((c, r)) * self.cell_size
+                # pos = self.tl + np.array((c, r)) * self.cell_size
+                pos = self.index_to_point(r, c)
                 cell_aabb = (*pos, *(pos + self.cell_size))
 
                 # Broad phase
@@ -219,7 +217,7 @@ class Heatmap:
                 break
 
     def send_rays(self, world, defenders, def_aabbs, row, ray_h_pct):
-        rows, cols = self.cells.shape
+        rows, cols = self.cell_wts.shape
 
         tl = self.tl + np.array((0, row)) * self.cell_size
         miny, maxy = tl[1], tl[1] + self.cell_size[1]
