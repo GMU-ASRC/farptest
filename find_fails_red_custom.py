@@ -1,0 +1,102 @@
+import os
+import argparse
+from pathlib import Path
+from warnings import warn
+
+import numpy as np
+os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
+from swarmsim import config_from_yaml
+from swarmsim.util.processing.multicoreprocessing import process_map
+from eval_genome import METRIC
+from eval_genome import fitness_single as fitness_single_genome
+from util import load_all_controllers
+
+cwd = Path(__file__).resolve().parent
+
+
+GENOME = [0.3, 0.6, -0.3, 0.6]  # josh's winning genome
+
+def test_mp_and_output_successes(configs, func, tqdm_kwargs={}):
+    ret_arr = process_map(func, configs, **tqdm_kwargs)
+    stats, successes = zip(*ret_arr)
+
+    rate = 1 - sum(successes) / len(configs)
+    return stats, rate, successes
+
+def fitness_single(*args, **kwargs):
+    load_all_controllers(cwd, name_suffix='Controller')
+    load_all_controllers(cwd, name_suffix='Evader')
+    return fitness_single_genome(*args, **kwargs)
+
+
+def generate_configs(rng_seed=20, n=6, trials=100, cycles=1000, seeds=None):
+    if not seeds:
+        seeds = np.random.default_rng(rng_seed).integers(0, 2**31, size=trials, dtype=np.int64)
+
+    return [
+        config_from_yaml(
+            cwd / "world.yaml",
+            m=METRIC,
+            # blue_controller='custom',
+            # blue_controller_class=args.blue_controller,
+            g=GENOME,
+            evader="custom",
+            seed=seed,
+            n=n,
+            cycles=cycles
+        )
+        for seed in seeds
+    ]
+
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    # parser.add_argument(
+    #     "-b", "--blue_controller", type=str, default='CustomController',
+    #     help="Path to blue controller",
+    # )
+    parser.add_argument(
+        "-s", "--samples", type=int, default=100, help="Number of samples to test"
+    )
+    parser.add_argument(
+        "-n", "--agents", type=int, default=6, help="Number of agents to test with"
+    )
+    parser.add_argument(
+        "-r", "--rng_seed", type=int, default=20, help="Seed for random number generator"
+    )
+    parser.add_argument(
+        "-c", "--cycles", type=int, default=1000, help="Max number of steps per simulation"
+    )
+    parser.add_argument("--seeds",
+        nargs='+', default=[], help="seeds to viz", type=str, action="extend"
+    )
+
+    args = parser.parse_args()
+
+    return args
+
+
+if __name__ == "__main__":
+
+    args = parse_args()
+    if not args.seeds:
+        print(f"Testing controller: {GENOME}\t vs. CustomEvader with {args.agents} agents")
+        print(f"Base Seed: {args.rng_seed}")
+        ns = args.samples
+
+        # if args.blue_controller:
+        #     load_all_controllers()
+        # else:
+
+        configs = generate_configs(rng_seed=args.rng_seed, n=args.agents, trials=args.samples, cycles=args.cycles)
+        _, rate, successes = test_mp_and_output_successes(configs, fitness_single)
+        print(f"{'Capture' if METRIC == 'ttc' else 'Detection'} rate:\t"
+            f"{100 * rate:.2f}%\t({int(rate * ns)}/{ns})")
+        fails = [cfg.seed for cfg, suc in zip(configs, successes) if suc == 0]
+    else:
+        fails = [int("".join([c for c in seed if str.isdigit(c)])) for seed in args.seeds]
+    print(len(fails), "fails", fails)
+    configs = generate_configs(n=args.agents, trials=args.samples, cycles=args.cycles, seeds=fails)
+    for c in configs:
+        _, success = fitness_single(c, show_gui=True, start_paused=True)
+

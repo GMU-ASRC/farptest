@@ -6,6 +6,7 @@ from swarmsim.agent.control.AbstractController import AbstractController
 import pygame
 import numpy as np
 import types
+from Heatmap import Heatmap
 
 SPEED_LIMIT = 0.3
 TURN_LIMIT = 0.6
@@ -45,6 +46,8 @@ class CustomEvader(AbstractController):
         if not self.agent.is_highlighted:
             return
         pan, zoom = np.asarray(offset[0]), np.asarray(offset[1])
+
+        self.heatmap.draw(screen, zoom , pan, self.agent.world.population[0])
 
         if self.stage == 1:
             cen = self.get_defender_centroid()
@@ -97,6 +100,20 @@ class CustomEvader(AbstractController):
         self.defender_positions = {}
         self.defender_positions_prev = {}
         self.pseudostep = 0
+        self.setup_heatmap()
+        
+    def setup_heatmap(self):
+        self.goal = self.agent.world.population[0]
+        self.dbg_center = self.agent.position + np.asarray([0.7, 0.6]) * (self.goal.position - self.agent.position)
+        self.dbg_radius = np.linalg.norm(self.goal.position - self.agent.position) * 0.5
+        self.dbg_radius += self.goal.radius
+        self.dbg_radius *= 1.1
+        self.dbg_rect = (
+            *(self.dbg_center - self.dbg_radius),
+            self.dbg_radius * 2,
+            self.dbg_radius * 2,
+        )
+        self.heatmap = Heatmap(rect=self.dbg_rect, decay_rate=0.8)
 
     def point_normal_to_segment(self, segvec, point):
         orthovec = np.array([segvec[1], -segvec[0]])
@@ -211,13 +228,15 @@ class CustomEvader(AbstractController):
     def get_actions(self, agent: MazeAgent):
         vector_sum = np.array([0, 0], dtype=np.float64)
         pos = agent.position
-        cen = self.get_defender_centroid()
-        goal_pos = agent.world.population[0].position
+        goal_agent = agent.world.population[0]
+        goal_pos = goal_agent.position
         vec_to_goal = goal_pos - pos
 
         if self.stage == 1: # stage 1, attract towards attack point
             if self.pseudostep < CENTROID_ADJUSTMENT_CUTOFF:
-                self.defense_vec += agent.world.dt * (cen - goal_pos)
+                # self.defense_vec += agent.world.dt * (self.get_defender_centroid() - goal_pos)
+                self.heatmap.update(agent.world, [a for a in agent.world.population if a.team == "blue"], agent.world.dt)
+                self.defense_vec = self.heatmap.goal_heatmap_vector(goal_pos, goal_agent.radius * 3)
             attack_point = goal_pos + ATTACK_POINT_DISTANCE * -self.defense_vec / np.linalg.norm(self.defense_vec)
             vec_to_attack_point = attack_point - pos
             vtg_msq = np.dot(vec_to_goal, vec_to_goal)
