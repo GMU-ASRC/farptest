@@ -29,10 +29,10 @@ class CustomEvader(AbstractController):
         self.heatmap = Heatmap(rect=self.dbg_rect, decay_rate=0.8)
         self.defenders = []
 
-    def get_actions(self, agent):
+    def get_actions(self, agent,):
         world = agent.world
         self.defenders = [a for a in world.population if a.team == "blue"]
-        self.heatmap.update(world, self.defenders)
+        self.heatmap.update(world, self.defenders, world.dt)
         return 0., 0.
 
     def draw(self, screen, offset):

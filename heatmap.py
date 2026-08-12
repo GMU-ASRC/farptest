@@ -83,8 +83,10 @@ def aabb_overlap_2d(a, b) -> bool:
 class Heatmap:
     def __init__(self,
         rect: tuple[float, float, float, float],
-        cell_size=0.2, decay_rate=0.5, blur_radius=0.5
+        cell_size=0.2, decay_rate=0.8, blur_radius=0.5
     ) -> None:
+        """NOTE: Decay rate is per second (not per frame)"""
+
         self.rect = rect
         x, y, w, h = self.rect
         side_len = max(w, h)
@@ -99,6 +101,7 @@ class Heatmap:
         self.cell_wts = np.zeros_like(self.walls, dtype=np.float64)
         self.wall_range: list[tuple[int, int, int]] = []
         self.path = []
+        # Decay rate per second
         self.decay_rate = decay_rate
         self.blur_radius = blur_radius
 
@@ -130,7 +133,7 @@ class Heatmap:
         else:
             return None
 
-    def update(self, world, defenders):
+    def update(self, world, defenders, dt):
         self.wall_range.clear()
         self._compute_occupation(world, defenders)
         
@@ -139,9 +142,8 @@ class Heatmap:
             self.walls[wr, wcs:wce+1] = 1.
 
         curr_wts = gaussian_filter(self.walls.astype(np.float64), sigma=self.blur_radius, mode="constant")
-        self.cell_wts = curr_wts + self.cell_wts
-        # self.cell_wts = curr_wts
-        # self.cell_wts /= self.cell_wts.max()
+        # Decay rate is adjusted to work per second, instead of per frame
+        self.cell_wts = curr_wts + (self.decay_rate**dt) * self.cell_wts
 
     def draw(self, screen, zoom, pan, goal, opacity=0.5):
         self.color_grid.fill(self.colors["open"])
