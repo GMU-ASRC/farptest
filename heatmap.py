@@ -9,6 +9,9 @@ from pathfinding.finder.a_star import AStarFinder
 from scipy.ndimage import gaussian_filter
 
 
+def vectorize(angle):
+    return np.array((np.cos(angle), np.sin(angle)))
+
 def project(a, b):
     return b * (np.dot(a, b) / np.dot(b, b))
 
@@ -80,7 +83,7 @@ def aabb_overlap_2d(a, b) -> bool:
 class Heatmap:
     def __init__(self,
         rect: tuple[float, float, float, float],
-        cell_size=0.2, decay_rate=0.8
+        cell_size=0.2, decay_rate=0.5, blur_radius=0.5
     ) -> None:
         self.rect = rect
         x, y, w, h = self.rect
@@ -93,10 +96,11 @@ class Heatmap:
         self.tl = np.asarray([x, y])
         self.cell_size = np.ones((2,)) * cell_size
         self.walls = np.zeros((rows, cols), dtype=np.int_)
-        self.cell_wts = np.zeros_like(self.walls)
+        self.cell_wts = np.zeros_like(self.walls, dtype=np.float64)
         self.wall_range: list[tuple[int, int, int]] = []
         self.path = []
         self.decay_rate = decay_rate
+        self.blur_radius = blur_radius
 
         self.occupied_color = (255, 0, 0)
         self.empty_color = (100, 100, 100)
@@ -128,23 +132,25 @@ class Heatmap:
 
     def update(self, world, defenders):
         self.wall_range.clear()
-        self.compute_occupation(world, defenders)
+        self._compute_occupation(world, defenders)
         
         self.walls.fill(0)
         for wr, wcs, wce in self.wall_range:
             self.walls[wr, wcs:wce+1] = 1.
 
-        curr_wts = gaussian_filter(self.walls.astype(np.float64), sigma=1, mode="constant")
-        self.cell_wts = curr_wts + self.decay_rate * self.cell_wts
-        self.cell_wts /= self.cell_wts.max()
+        curr_wts = gaussian_filter(self.walls.astype(np.float64), sigma=self.blur_radius, mode="constant")
+        self.cell_wts = curr_wts + self.cell_wts
+        # self.cell_wts = curr_wts
+        # self.cell_wts /= self.cell_wts.max()
 
     def draw(self, screen, zoom, pan, goal, opacity=0.5):
         self.color_grid.fill(self.colors["open"])
+        norm_grid = self.cell_wts / self.cell_wts.max()
         rows, cols = self.cell_wts.shape
         for r in range(rows):
             for c in range(cols):
                 self.color_grid[r][c] = self.colors["open"].lerp(
-                    self.colors["wall"], self.cell_wts[r][c])
+                    self.colors["wall"], norm_grid[r][c])
 
         for pn in self.path:
             self.color_grid[pn.y][pn.x] = self.colors["path"]
@@ -165,17 +171,17 @@ class Heatmap:
                 surf_pos = np.array((c, r)) * surf_cell_size + padding
                 pygame.draw.rect(surface, int(self.color_grid[r][c]), (*surf_pos, *surf_fill_size))
 
-        center, radius = goal.position, goal.radius * 1.2
+        center, radius = goal.position, goal.radius * 3
         vec = self.goal_heatmap_vector(center, radius)
-        vec = radius * vec / np.linalg.norm(vec)
+        vec = radius * vectorize(np.arctan2(vec[1], vec[0]))
         pygame.draw.circle(screen, "#aaff00", center * zoom + pan, radius * zoom, width=2)
         pygame.draw.line(screen, "#aaff00", center * zoom + pan, (center + vec) * zoom + pan, width=2)
 
         surface.set_alpha(int(opacity * 255.))
         screen.blit(surface, self.tl * zoom + pan)
 
-    def goal_heatmap_vector(self, goal_center, goal_radius):
-        center, radius = np.asarray(goal_center), goal_radius
+    def goal_heatmap_vector(self, goal_center, scan_radius):
+        center, radius = np.asarray(goal_center), scan_radius
         goal_aabb = (*(center - radius), *(center + radius))
 
         rows, cols = self.cell_wts.shape
@@ -196,8 +202,8 @@ class Heatmap:
 
         return sum_vec
 
-    def compute_occupation(self, world, defenders, ray_heights=[0.2, 0.8]):
-        combined_aabb, indiv_aabb = self.defender_sensor_aabb(world, defenders)
+    def _compute_occupation(self, world, defenders, ray_heights=[0.2, 0.8]):
+        combined_aabb, indiv_aabb = self._defender_sensor_aabb(world, defenders)
 
         rows, cols = self.cell_wts.shape
         for r in range(rows):
@@ -212,11 +218,11 @@ class Heatmap:
 
                 # Narrow phase
                 for ray_h in ray_heights:
-                    self.send_rays(world, defenders, indiv_aabb, r, ray_h)
+                    self._send_rays(world, defenders, indiv_aabb, r, ray_h)
 
                 break
 
-    def send_rays(self, world, defenders, def_aabbs, row, ray_h_pct):
+    def _send_rays(self, world, defenders, def_aabbs, row, ray_h_pct):
         rows, cols = self.cell_wts.shape
 
         tl = self.tl + np.array((0, row)) * self.cell_size
@@ -274,7 +280,7 @@ class Heatmap:
                 self.wall_range.append((row, np.min(_range), np.max(_range)))
 
 
-    def defender_sensor_aabb(self, world, defenders) -> tuple[NDArray, NDArray]:
+    def _defender_sensor_aabb(self, world, defenders) -> tuple[NDArray, NDArray]:
         sens_aabbs = np.zeros((len(defenders), 4))
         for i, defender in enumerate(defenders):
             sensor = defender.sensors[1]
