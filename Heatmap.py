@@ -175,6 +175,11 @@ class Heatmap:
         vec = radius * vectorize(np.arctan2(vec[1], vec[0]))
         pygame.draw.circle(screen, "#aaff00", center * zoom + pan, radius * zoom, width=2)
         pygame.draw.line(screen, "#aaff00", center * zoom + pan, (center + vec) * zoom + pan, width=2)
+        if hasattr(self, "_defender_sensor_aabb_cache"):
+            tl = self._defender_sensor_aabb_cache[0][0:2]
+            wh = self._defender_sensor_aabb_cache[0][2:4] - tl
+            pygame.draw.rect(screen, "#aaff00",  [*(tl * zoom + pan), *(wh * zoom)], 3)
+        
 
         surface.set_alpha(int(opacity * 255.))
         screen.blit(surface, self.tl * zoom + pan)
@@ -182,44 +187,47 @@ class Heatmap:
     def goal_heatmap_vector(self, goal_center, scan_radius):
         center, radius = np.asarray(goal_center), scan_radius
         goal_aabb = (*(center - radius), *(center + radius))
+        
+        tl, br = self.point_to_index(goal_aabb[0:2]), self.point_to_index(goal_aabb[2:4])
+        wts_in_aabb = self.cell_wts[tl[1]:br[1]+1, tl[0]:br[0]+1]
+        rows, cols = wts_in_aabb.shape
 
-        rows, cols = self.cell_wts.shape
         sum_vec = np.zeros((2,))
         for r in range(rows):
             for c in range(cols):
-                pos = self.index_to_point(r, c)
+                pos = self.index_to_point(r + tl[1], c + tl[0])
                 assert pos is not None
-                cell_aabb = (*pos, *(pos + self.cell_size))
-                if not aabb_overlap_2d(goal_aabb, cell_aabb):
-                    continue
 
                 cell_center = pos + 0.5 * self.cell_size
-                dist = np.linalg.norm(cell_center - center)
-                if dist <= radius:
+                dist_sq = np.dot(cell_center - center, cell_center - center)
+                if 0 != dist_sq and dist_sq <= radius**2:
                     mag = self.cell_wts[r][c]
-                    sum_vec += (cell_center - center) / dist * mag
+                    sum_vec += (cell_center - center) / np.sqrt(dist_sq) * mag
 
+        # for r in range(rows):
+        #     for c in range(cols):
+        #         pos = self.index_to_point(r, c)
+        #         assert pos is not None
+        #         cell_aabb = (*pos, *(pos + self.cell_size))
+        #         if not aabb_overlap_2d(goal_aabb, cell_aabb):
+        #             continue
+
+        #         cell_center = pos + 0.5 * self.cell_size
+        #         dist = cell_center - center
+        #         if np.dot(dist, dist) <= radius**2:
+        #             mag = self.cell_wts[r][c]
+        #             sum_vec += (cell_center - center) / dist * mag
+        
         return sum_vec
 
     def _compute_occupation(self, world, defenders, ray_heights=[0.2, 0.8]):
         combined_aabb, indiv_aabb = self._defender_sensor_aabb(world, defenders)
-
-        rows, cols = self.cell_wts.shape
-        for r in range(rows):
-            for c in range(cols):
-                # pos = self.tl + np.array((c, r)) * self.cell_size
-                pos = self.index_to_point(r, c)
-                cell_aabb = (*pos, *(pos + self.cell_size))
-
-                # Broad phase
-                if not aabb_overlap_2d(combined_aabb, cell_aabb):
-                    continue
-
-                # Narrow phase
-                for ray_h in ray_heights:
-                    self._send_rays(world, defenders, indiv_aabb, r, ray_h)
-
-                break
+        
+        for r in range(self.point_to_index(combined_aabb[0:2])[0], self.point_to_index(combined_aabb[2:4])[0]+1):
+            
+            # Narrow phase
+            for ray_h in ray_heights:
+                self._send_rays(world, defenders, indiv_aabb, r, ray_h)
 
     def _send_rays(self, world, defenders, def_aabbs, row, ray_h_pct):
         rows, cols = self.cell_wts.shape
@@ -290,4 +298,6 @@ class Heatmap:
 
         minx, miny = np.min(sens_aabbs.T[:2], axis=1)
         maxx, maxy = np.max(sens_aabbs.T[2:], axis=1)
-        return (np.array((minx, miny, maxx, maxy)), sens_aabbs)
+        result = (np.array((minx, miny, maxx, maxy)), sens_aabbs)
+        self._defender_sensor_aabb_cache = result
+        return result

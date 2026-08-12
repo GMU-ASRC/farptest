@@ -74,7 +74,6 @@ class CustomEvader(AbstractController):
             proj_tail = (defender.position + self.predict_agent_delta(defender, PROJECTION_DELTA)[0]) * zoom + pan
             pygame.draw.line(screen, (0, 150, 150), head, proj_tail)
             draw_sensor_cone(bfovs, screen, offset)
-        
         # draw lines to closest points on predicted locations of defenders
         for defender in [a for a in self.agent.world.population if a.team == "blue"]:
             # draw line to closest point of agent view cone
@@ -87,7 +86,6 @@ class CustomEvader(AbstractController):
             pygame.draw.line(screen, (200, 100, 0), head, tail, np.clip((3 / mag**2), 1, 5).astype(np.int16))
             # draw agent's view cone
             draw_sensor_cone(bfovs, screen, offset, (0, 150, 150))
-
         if hasattr(self, "view_vector"):
             head = self.agent.position * zoom + pan
             tail = (self.agent.position + 2 * self.view_vector / np.linalg.norm(self.view_vector)) * zoom + pan
@@ -107,7 +105,7 @@ class CustomEvader(AbstractController):
         self.dbg_center = self.agent.position + np.asarray([0.7, 0.6]) * (self.goal.position - self.agent.position)
         self.dbg_radius = np.linalg.norm(self.goal.position - self.agent.position) * 0.5
         self.dbg_radius += self.goal.radius
-        self.dbg_radius *= 1.1
+        self.dbg_radius *= 1.4
         self.dbg_rect = (
             *(self.dbg_center - self.dbg_radius),
             self.dbg_radius * 2,
@@ -237,7 +235,10 @@ class CustomEvader(AbstractController):
                 # self.defense_vec += agent.world.dt * (self.get_defender_centroid() - goal_pos)
                 self.heatmap.update(agent.world, [a for a in agent.world.population if a.team == "blue"], agent.world.dt)
                 self.defense_vec = self.heatmap.goal_heatmap_vector(goal_pos, goal_agent.radius * 3)
-            attack_point = goal_pos + ATTACK_POINT_DISTANCE * -self.defense_vec / np.linalg.norm(self.defense_vec)
+            if np.dot(self.defense_vec, self.defense_vec) < 1e-3: # prevent divide by zero
+                attack_point = goal_pos
+            else:
+                attack_point = goal_pos + ATTACK_POINT_DISTANCE * -self.defense_vec / np.linalg.norm(self.defense_vec)
             vec_to_attack_point = attack_point - pos
             vtg_msq = np.dot(vec_to_goal, vec_to_goal)
             vtap_msq = np.dot(vec_to_attack_point, vec_to_attack_point)

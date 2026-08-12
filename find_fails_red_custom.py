@@ -98,5 +98,5 @@ if __name__ == "__main__":
     print(len(fails), "fails", fails)
     configs = generate_configs(n=args.agents, trials=args.samples, cycles=args.cycles, seeds=fails)
     for c in configs:
-        _, success = fitness_single(c, show_gui=True, start_paused=True)
+        _, success = fitness_single(c, show_gui=True, start_paused=False)
 
