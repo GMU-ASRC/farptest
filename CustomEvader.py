@@ -43,11 +43,11 @@ def draw_sensor_cone(sensor: BinaryFOVSensor, screen, offset=((0, 0), 1.0), colo
 
 class CustomEvader(AbstractController):
     def draw(self, screen, offset=((0, 0), 1.0)):
-        # if not self.agent.is_highlighted:
-        #     return
+        if not self.agent.is_highlighted:
+            return
         pan, zoom = np.asarray(offset[0]), np.asarray(offset[1])
 
-        self.heatmap.draw(screen, zoom, pan, self.agent.world.population[0])
+        self.heatmap.draw(screen, zoom, pan)
 
         if self.stage == 1:
             cen = self.get_defender_centroid()

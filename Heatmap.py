@@ -149,7 +149,7 @@ class Heatmap:
         # Decay rate is adjusted to work per second, instead of per frame
         self.cell_wts = curr_wts + (self.decay_rate**dt) * self.cell_wts
 
-    def draw(self, screen, zoom, pan, goal, opacity=0.5):
+    def draw(self, screen, zoom, pan, opacity=0.5):
         self.color_grid.fill(self.colors["open"])
         norm_grid = self.cell_wts / self.cell_wts.max()
         rows, cols = self.cell_wts.shape
@@ -196,7 +196,7 @@ class Heatmap:
 
         for r in range(rows):
             for c in range(cols):
-                if self.cell_wts[r][c] == 0.:
+                if self.cell_wts[r,c] < 0.05:
                     continue
 
                 pos = self.index_to_point(r, c)
@@ -204,7 +204,7 @@ class Heatmap:
                 dist_sq = np.dot(cell_center - self.center, cell_center - self.center)
                 # if 0 != dist_sq and dist_sq <= self.radius**2:
                 if 0 < dist_sq <= self.radius**2:
-                    mag = self.cell_wts[r][c]
+                    mag = self.cell_wts[r,c]
                     sum_vec += (cell_center - self.center) / np.sqrt(dist_sq) * mag
 
         return sum_vec
