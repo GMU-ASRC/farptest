@@ -79,20 +79,27 @@ def aabb_overlap_2d(a, b) -> bool:
 
 class Heatmap:
     def __init__(self,
-        rect: tuple[float, float, float, float],
+        center: tuple[float, float], radius: float,
         cell_size=0.2, decay_rate=0.8, blur_radius=0.5
     ) -> None:
         """NOTE: Decay rate is per second (not per frame)"""
 
-        self.rect = rect
-        x, y, w, h = self.rect
-        side_len = max(w, h)
+        # x, y, w, h = self.rect
+        # side_len = max(w, h)
+        # self.rect = rect
+        side_len = radius
+        self.center = np.asarray(center)
+        self.radius = radius
+        self.rect = (
+            *(self.center - self.radius),
+            self.radius * 2, self.radius * 2,
+        )
 
-        ww, wh = np.array((side_len, side_len))
+        self.tl = np.asarray(self.rect[:2])
+        self.rect_size = ww, wh = np.asarray(self.rect[2:])
         cols, rows = np.array((ww, wh)) / cell_size
-        cols, rows = int(cols), int(rows)
+        self.dbg_cols, self.dbg_rows = cols, rows = int(cols), int(rows)
 
-        self.tl = np.asarray([x, y])
         self.cell_size = np.ones((2,)) * cell_size
         self.walls = np.zeros((rows, cols), dtype=np.int_)
         self.cell_wts = np.zeros_like(self.walls, dtype=np.float64)
@@ -170,61 +177,41 @@ class Heatmap:
                 surf_pos = np.array((c, r)) * surf_cell_size + padding
                 pygame.draw.rect(surface, int(self.color_grid[r][c]), (*surf_pos, *surf_fill_size))
 
-        center, radius = goal.position, goal.radius * 3
-        vec = self.goal_heatmap_vector(center, radius)
-        vec = radius * vectorize(np.arctan2(vec[1], vec[0]))
-        pygame.draw.circle(screen, "#aaff00", center * zoom + pan, radius * zoom, width=2)
-        pygame.draw.line(screen, "#aaff00", center * zoom + pan, (center + vec) * zoom + pan, width=2)
+        vec = self.goal_heatmap_vector()
+        vec = self.radius * vectorize(np.arctan2(vec[1], vec[0]))
+        pygame.draw.circle(screen, "#aaff00", self.center * zoom + pan, self.radius * zoom, width=2)
+        pygame.draw.line(screen, "#aaff00", self.center * zoom + pan, (self.center + vec) * zoom + pan, width=2)
         if hasattr(self, "_defender_sensor_aabb_cache"):
-            tl = self._defender_sensor_aabb_cache[0][0:2]
-            wh = self._defender_sensor_aabb_cache[0][2:4] - tl
-            pygame.draw.rect(screen, "#aaff00",  [*(tl * zoom + pan), *(wh * zoom)], 3)
+            tl = self._defender_sensor_aabb_cache[0][:2]
+            wh = self._defender_sensor_aabb_cache[0][2:] - tl
+            pygame.draw.rect(screen, "#ff00ff",  [*(tl * zoom + pan), *(wh * zoom)], 3)
         
 
         surface.set_alpha(int(opacity * 255.))
         screen.blit(surface, self.tl * zoom + pan)
 
-    def goal_heatmap_vector(self, goal_center, scan_radius):
-        center, radius = np.asarray(goal_center), scan_radius
-        goal_aabb = (*(center - radius), *(center + radius))
-        
-        tl, br = self.point_to_index(goal_aabb[0:2]), self.point_to_index(goal_aabb[2:4])
-        wts_in_aabb = self.cell_wts[tl[1]:br[1]+1, tl[0]:br[0]+1]
-        rows, cols = wts_in_aabb.shape
-
+    def goal_heatmap_vector(self):        
         sum_vec = np.zeros((2,))
+        rows, cols = self.cell_wts.shape
         for r in range(rows):
             for c in range(cols):
-                pos = self.index_to_point(r + tl[1], c + tl[0])
+                pos = self.index_to_point(r, c)
                 assert pos is not None
 
                 cell_center = pos + 0.5 * self.cell_size
-                dist_sq = np.dot(cell_center - center, cell_center - center)
-                if 0 != dist_sq and dist_sq <= radius**2:
+                dist_sq = np.dot(cell_center - self.center, cell_center - self.center)
+                if 0 != dist_sq and dist_sq <= self.radius**2:
                     mag = self.cell_wts[r][c]
-                    sum_vec += (cell_center - center) / np.sqrt(dist_sq) * mag
+                    sum_vec += (cell_center - self.center) / np.sqrt(dist_sq) * mag
 
-        # for r in range(rows):
-        #     for c in range(cols):
-        #         pos = self.index_to_point(r, c)
-        #         assert pos is not None
-        #         cell_aabb = (*pos, *(pos + self.cell_size))
-        #         if not aabb_overlap_2d(goal_aabb, cell_aabb):
-        #             continue
-
-        #         cell_center = pos + 0.5 * self.cell_size
-        #         dist = cell_center - center
-        #         if np.dot(dist, dist) <= radius**2:
-        #             mag = self.cell_wts[r][c]
-        #             sum_vec += (cell_center - center) / dist * mag
-        
         return sum_vec
 
     def _compute_occupation(self, world, defenders, ray_heights=[0.2, 0.8]):
         combined_aabb, indiv_aabb = self._defender_sensor_aabb(world, defenders)
         
-        for r in range(self.point_to_index(combined_aabb[0:2])[0], self.point_to_index(combined_aabb[2:4])[0]+1):
-            
+        start_r = self.point_to_index(combined_aabb[0:2])[1]
+        end_r = self.point_to_index(combined_aabb[2:4])[1]
+        for r in range(start_r, end_r+1):
             # Narrow phase
             for ray_h in ray_heights:
                 self._send_rays(world, defenders, indiv_aabb, r, ray_h)
