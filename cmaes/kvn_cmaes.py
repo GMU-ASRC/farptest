@@ -1,3 +1,4 @@
+import argparse
 import datetime as dt
 import json
 import os
@@ -101,10 +102,15 @@ def eval_controller_over_n(best_of_each_n_results):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-n", type=int, default=6, help="Number of agents to test with")
+    args = parser.parse_args()
+
     # PART 1
-    TRIALS = 10
+    TRIALS = 100
     best_of_each_n_results = []
-    for n in range(1, 40+1):
+    # NOTE: I know I can remove this for loop, but I'm intentionally leaving it, for now.
+    for n in range(args.n, args.n+1):
         fe = FARPEvolver(n=n, trials=TRIALS, seed=20)
         fe.evolve()
         best_of_each_n_results.append({
@@ -113,8 +119,8 @@ if __name__ == "__main__":
         })
 
     os.makedirs("kcm_results", exist_ok=True)
-    with open("kcm_results/best_of_each_n.json", "w") as f:
+    with open(f"kcm_results/best_of_n{args.n}.json", "w") as f:
         json.dump(best_of_each_n_results, f, indent=4)
 
     # PART 2
-    eval_controller_over_n(best_of_each_n_results)
+    # eval_controller_over_n(best_of_each_n_results)

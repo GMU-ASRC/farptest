@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ## Give your job a name to distinguish it from other jobs you run.
-#SBATCH --job-name=kcm_01
+#SBATCH --job-name=kcm_w_arrays
 
 ## General partitions: all-HiPri, bigmem-HiPri   --   (12 hour limit)
 ##                     all-LoPri, bigmem-LoPri, gpuq  (5 days limit)
@@ -27,6 +27,7 @@
 #SBATCH --time=0-02:30  # Total time needed for job: Days-Hours:Minutes:Seconds
 
 #SBATCH --cpus-per-task 36
+#SBATCH --array=6-14:2
 
 
 ## Commands to Load Modules:
@@ -37,4 +38,4 @@ source .venv/bin/activate || { echo "Unable to activate venv"; exit 1; }
 cd cmaes/ || { echo "Unable to navigate to cmaes sub folder"; exit 1; }
 
 ## Load modules, insert code, and run your programs here.
-python kvn_cmaes.py
+python kvn_cmaes.py -n $SLURM_ARRAY_TASK_ID
