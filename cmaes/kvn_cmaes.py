@@ -107,7 +107,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # PART 1
-    TRIALS = 100
+    TRIALS = 20
     best_of_each_n_results = []
     # NOTE: I know I can remove this for loop, but I'm intentionally leaving it, for now.
     for n in range(args.n, args.n+1):
