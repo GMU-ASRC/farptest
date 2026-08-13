@@ -193,14 +193,17 @@ class Heatmap:
     def goal_heatmap_vector(self):        
         sum_vec = np.zeros((2,))
         rows, cols = self.cell_wts.shape
+
         for r in range(rows):
             for c in range(cols):
-                pos = self.index_to_point(r, c)
-                assert pos is not None
+                if self.cell_wts[r][c] == 0.:
+                    continue
 
+                pos = self.index_to_point(r, c)
                 cell_center = pos + 0.5 * self.cell_size
                 dist_sq = np.dot(cell_center - self.center, cell_center - self.center)
-                if 0 != dist_sq and dist_sq <= self.radius**2:
+                # if 0 != dist_sq and dist_sq <= self.radius**2:
+                if 0 < dist_sq <= self.radius**2:
                     mag = self.cell_wts[r][c]
                     sum_vec += (cell_center - self.center) / np.sqrt(dist_sq) * mag
 
@@ -208,16 +211,24 @@ class Heatmap:
 
     def _compute_occupation(self, world, defenders, ray_heights=[0.2, 0.8]):
         combined_aabb, indiv_aabb = self._defender_sensor_aabb(world, defenders)
-        
-        start_r = self.point_to_index(combined_aabb[0:2])[1]
-        end_r = self.point_to_index(combined_aabb[2:4])[1]
-        for r in range(start_r, end_r+1):
+
+        rows, _ = self.cell_wts.shape
+        start_r, end_r = 0, rows
+        aabb_start_r = self.point_to_index(combined_aabb[0:2])
+        aabb_end_r = self.point_to_index(combined_aabb[2:4])
+
+        if aabb_start_r is not None:
+            start_r = aabb_start_r[1]
+        if aabb_end_r is not None:
+            end_r = aabb_end_r[1] + 1
+
+        for r in range(start_r, end_r):
             # Narrow phase
             for ray_h in ray_heights:
-                self._send_rays(world, defenders, indiv_aabb, r, ray_h)
+                self._send_rays(defenders, indiv_aabb, r, ray_h)
 
-    def _send_rays(self, world, defenders, def_aabbs, row, ray_h_pct):
-        rows, cols = self.cell_wts.shape
+    def _send_rays(self, defenders, def_aabbs, row, ray_h_pct):
+        _, cols = self.cell_wts.shape
 
         tl = self.tl + np.array((0, row)) * self.cell_size
         miny, maxy = tl[1], tl[1] + self.cell_size[1]
