@@ -13,11 +13,13 @@ TURN_LIMIT = 0.6
 
 GOAL_ATTRACTION = 20
 DEFENDER_REPULSION = 1
-PROJECTION_DELTA = 15
+PROJECTION_DELTA = 20
 ATTACK_POINT_DISTANCE = 2.5
 DIVE_TRIGGER_DISTANCE = 1
 CENTROID_ADJUSTMENT_CUTOFF = 400
-
+KILLZONE_PADDING = 0
+KILLZONE_NUMBER = 3
+KILLZONE_DECAY = 0.8
 def smallest_angular_difference(a1, a2):
     a = a1 - a2
     return (a + np.pi) % (2*np.pi) - np.pi
@@ -78,8 +80,18 @@ class CustomEvader(AbstractController):
             draw_sensor_cone(bfovs, screen, offset)
         # draw lines to closest points on predicted locations of defenders
         for defender in [a for a in self.agent.world.population if a.team == "blue"]:
+            bfovs = defender.sensors[1]
+            for delta_steps in range(PROJECTION_DELTA//KILLZONE_NUMBER, PROJECTION_DELTA+1, PROJECTION_DELTA//KILLZONE_NUMBER):
+                pos, radius = self.project_killzone(bfovs, delta_steps)
+                pygame.draw.circle(screen, (0, 0, 255), (pos) * zoom + pan, radius * zoom, width=2)
+            vec = self.vector_away_from_killzone(bfovs, PROJECTION_DELTA)
+            mag = np.linalg.norm(vec)
+            head = self.agent.position * zoom + pan
+            tail = (self.agent.position + vec) * zoom + pan
+            pygame.draw.line(screen, (200, 100, 0), head, tail, np.clip((3 / mag**2), 1, 5).astype(np.int16))
+            continue
             # draw line to closest point of agent view cone
-            bfovs: BinaryFOVSensor = self.project_sensor(defender.sensors[1], PROJECTION_DELTA)
+            bfovs: BinaryFOVSensor = self.project_sensor(bfovs, PROJECTION_DELTA)
             defender = bfovs.agent
             vec = self.get_nearest_point_of_sensor(bfovs)
             mag = np.linalg.norm(vec)
@@ -88,6 +100,8 @@ class CustomEvader(AbstractController):
             pygame.draw.line(screen, (200, 100, 0), head, tail, np.clip((3 / mag**2), 1, 5).astype(np.int16))
             # draw agent's view cone
             draw_sensor_cone(bfovs, screen, offset, (0, 150, 150))
+            
+
         if hasattr(self, "view_vector"):
             head = self.agent.position * zoom + pan
             tail = (self.agent.position + 2 * self.view_vector / np.linalg.norm(self.view_vector)) * zoom + pan
@@ -95,7 +109,7 @@ class CustomEvader(AbstractController):
     
     def __init__(self, agent=None, parent=None, **kwargs):
         super().__init__(agent, parent)
-        self.stage = 1
+        self.stage = 2
         self.defense_vec = np.array([0, 0], dtype=np.float64)
         self.defender_positions = {}
         self.defender_positions_prev = {}
@@ -145,9 +159,9 @@ class CustomEvader(AbstractController):
         return v, w
         
 
-    def predict_agent_delta(self, defender: MazeAgent, delta_steps):
+    def predict_agent_delta(self, defender: MazeAgent, delta_steps, v_w = None):
         t = self.agent.world.dt * delta_steps
-        v, w = self.calculate_defender_v_w(defender)
+        v, w = v_w if v_w else self.calculate_defender_v_w(defender)
         if v == 0: # no speed
             return np.array([0, 0]), w * t
         v_vec = v * vectorize(defender.angle)
@@ -175,7 +189,32 @@ class CustomEvader(AbstractController):
         fake_sensor.agent = fake_agent
         fake_sensor.getSectorVectors = lambda : (vectorize(fake_agent.angle + fake_sensor.bias + fake_sensor.theta), vectorize(fake_agent.angle + fake_sensor.bias - fake_sensor.theta))
         return fake_sensor
-        
+    
+    def project_killzone(self, sensor: BinaryFOVSensor, delta_steps):
+        defender = sensor.agent
+        v, w = self.calculate_defender_v_w(defender)
+        min_r = sensor.r - (np.sin(sensor.theta) * sensor.r * 2) if w == 0 else SPEED_LIMIT / abs(w)
+        max_r = sensor.r
+        radius = (0 if max_r - min_r < 0 else (max_r - min_r) / 2) + KILLZONE_PADDING
+        dpos, dangle = self.predict_agent_delta(defender, delta_steps, (v, w))
+        fpos = defender.position + dpos
+        fangle = defender.angle + dangle
+        return fpos + vectorize(fangle) * (min_r + radius), radius
+
+    def vector_away_from_killzone(self, sensor: BinaryFOVSensor, delta_steps):
+        defender = sensor.agent
+        projections = [self.project_killzone(defender.sensors[1], delta_steps) for delta_steps in range(PROJECTION_DELTA//KILLZONE_NUMBER, PROJECTION_DELTA+1, PROJECTION_DELTA//KILLZONE_NUMBER)]
+        distances = [ppos - self.agent.position for ppos, _ in projections]
+        dists_msq = [np.dot(d, d) for d in distances]
+        midx = np.argmin(dists_msq)
+        shorten = lambda v, r : v * max(np.linalg.norm(v) - r, 0.1) / np.linalg.norm(v)
+        if midx == 0:
+            return shorten(distances[0], projections[0][1])
+        prev_delta = projections[midx][0] - projections[midx - 1][0]
+        idx = midx -1 if dists_msq[midx - 1] < np.dot(prev_delta, prev_delta) else midx
+        return shorten(distances[idx], projections[idx][1])
+
+
     def get_nearest_point_of_sensor(self, sensor: BinaryFOVSensor, check_inside=False):
         options = []
         pos = self.agent.position
@@ -267,10 +306,16 @@ class CustomEvader(AbstractController):
             mag = np.linalg.norm(vec)
             vector_sum -= (DEFENDER_REPULSION / mag**2) * vec / mag
             # repulse predicted sensing cones
-            predicted_sensor: BinaryFOVSensor = self.project_sensor(defender.sensors[1], PROJECTION_DELTA)
-            p_vec = self.get_nearest_point_of_sensor(predicted_sensor, check_inside=True)
-            p_mag = np.linalg.norm(p_vec)
-            vector_sum -= (DEFENDER_REPULSION / p_mag**2) * p_vec / p_mag
+            # predicted_sensor: BinaryFOVSensor = self.project_sensor(defender.sensors[1], PROJECTION_DELTA)
+            # p_vec = self.get_nearest_point_of_sensor(predicted_sensor, check_inside=True)
+            # p_mag = np.linalg.norm(p_vec)
+            # vector_sum -= (DEFENDER_REPULSION / p_mag**2) * p_vec / p_mag
+            # repulse killzones
+            k_vec = self.vector_away_from_killzone(bfovs, PROJECTION_DELTA)
+            k_mag = np.linalg.norm(k_vec)
+            vector_sum -= (DEFENDER_REPULSION / k_mag**2) * k_vec / k_mag
+
+            
         
         
         self.view_vector = vector_sum
