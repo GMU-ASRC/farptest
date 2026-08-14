@@ -12,17 +12,22 @@ SPEED_LIMIT = 0.3
 TURN_LIMIT = 0.6
 
 GOAL_ATTRACTION = 20
+CLOSE_GOAL_ATTRACTION = 1
 DEFENDER_REPULSION = 1
 PROJECTION_DELTA = 20
 ATTACK_POINT_DISTANCE = 2.5
 DIVE_TRIGGER_DISTANCE = 1
 CENTROID_ADJUSTMENT_CUTOFF = 400
-KILLZONE_PADDING = 0
+KILLZONE_PADDING = 0.1
 KILLZONE_NUMBER = 3
-KILLZONE_DECAY = 0.8
+KILLZONE_DECAY = 0.7
+
 def smallest_angular_difference(a1, a2):
     a = a1 - a2
     return (a + np.pi) % (2*np.pi) - np.pi
+
+def orthogonal_vector(v):
+    return np.array([v[1], -v[0]])
 
 def draw_sensor_cone(sensor: BinaryFOVSensor, screen, offset=((0, 0), 1.0), color=(255, 0, 0)):
     pan, zoom = offset
@@ -81,10 +86,12 @@ class CustomEvader(AbstractController):
         # draw lines to closest points on predicted locations of defenders
         for defender in [a for a in self.agent.world.population if a.team == "blue"]:
             bfovs = defender.sensors[1]
-            for delta_steps in range(PROJECTION_DELTA//KILLZONE_NUMBER, PROJECTION_DELTA+1, PROJECTION_DELTA//KILLZONE_NUMBER):
-                pos, radius = self.project_killzone(bfovs, delta_steps)
+            self.draw_sensor_path(bfovs, screen, zoom, pan)
+            continue
+            for kd_steps in self.killzone_delta_steps():
+                pos, radius = self.project_killzone(bfovs, kd_steps)
                 pygame.draw.circle(screen, (0, 0, 255), (pos) * zoom + pan, radius * zoom, width=2)
-            vec = self.vector_away_from_killzone(bfovs, PROJECTION_DELTA)
+            vec, _ = self.vector_away_from_killzone(bfovs, PROJECTION_DELTA)
             mag = np.linalg.norm(vec)
             head = self.agent.position * zoom + pan
             tail = (self.agent.position + vec) * zoom + pan
@@ -98,18 +105,18 @@ class CustomEvader(AbstractController):
             head = self.agent.position * zoom + pan
             tail = (self.agent.position + vec) * zoom + pan
             pygame.draw.line(screen, (200, 100, 0), head, tail, np.clip((3 / mag**2), 1, 5).astype(np.int16))
-            # draw agent's view cone
+            # draw projected sensor view cone
             draw_sensor_cone(bfovs, screen, offset, (0, 150, 150))
             
 
         if hasattr(self, "view_vector"):
             head = self.agent.position * zoom + pan
-            tail = (self.agent.position + 2 * self.view_vector / np.linalg.norm(self.view_vector)) * zoom + pan
+            tail = (self.agent.position + (self.view_vector / np.linalg.norm(self.view_vector) * np.sqrt(np.linalg.norm(self.view_vector)))) * zoom + pan
             pygame.draw.line(screen, (100, 0, 200), head, tail)
     
     def __init__(self, agent=None, parent=None, **kwargs):
         super().__init__(agent, parent)
-        self.stage = 2
+        self.stage = 1
         self.defense_vec = np.array([0, 0], dtype=np.float64)
         self.defender_positions = {}
         self.defender_positions_prev = {}
@@ -127,7 +134,7 @@ class CustomEvader(AbstractController):
                                decay_rate=0.8)
 
     def point_normal_to_segment(self, segvec, point):
-        orthovec = np.array([segvec[1], -segvec[0]])
+        orthovec = orthogonal_vector(segvec)
         return np.sign(turn(orthovec, segvec - point)) != np.sign(turn(orthovec, -point))
 
     def calculate_defender_v_w(self, defender: MazeAgent):
@@ -176,6 +183,44 @@ class CustomEvader(AbstractController):
         
         return d * np.sign(v) * vectorize(defender.angle + d_angle), theta
 
+    def draw_sensor_path(self, sensor: BinaryFOVSensor, screen, zoom, pan):
+        t = self.agent.world.dt
+        v, w = self.calculate_defender_v_w(sensor.agent)
+        if v == 0: # no speed
+            return np.array([0.0, 0.0])
+        v_vec = v * vectorize(sensor.agent.angle)
+        if w == 0: # no angular velocity
+            return np.array([0.0, 0.0])
+        
+        # defender will travel on a circular path, we can use geometry to compute where it will be if v and w hold
+        r = abs(v / w)
+        circle_center = sensor.agent.position + orthogonal_vector(vectorize(sensor.agent.angle)) * r * -np.sign(w)
+        rel_left, rel_right = sensor.getSectorVectors()
+        abs_left, abs_right = sensor.agent.position + sensor.r * rel_left[:2], sensor.agent.position + sensor.r * rel_right[:2]
+        radius_left, radius_right = np.linalg.norm(abs_left - circle_center), np.linalg.norm(abs_right - circle_center)
+        min_radius = min(r, radius_left, radius_right) - self.agent.radius
+        max_radius = max(r, radius_left, radius_right) + self.agent.radius
+        
+        if min_radius < np.linalg.norm(self.agent.position - circle_center) < max_radius:
+            circen_to_defender = sensor.agent.position - circle_center
+            circen_to_self = self.agent.position - circle_center
+            if screen:
+                pygame.draw.circle(screen, (0, 255, 255), circle_center * zoom + pan, min_radius*zoom, 2)
+                pygame.draw.circle(screen, (0, 255, 255), circle_center * zoom + pan, max_radius*zoom, 2)
+            defender_angle = np.atan2(circen_to_defender[1], circen_to_defender[0])
+
+            middle_radius = (max_radius + min_radius) / 2
+            u_cts = circen_to_self / np.linalg.norm(circen_to_self) * (-1 if np.linalg.norm(circen_to_self) < middle_radius else 1)
+            if screen:
+                range_bbox = AABB.from_center_wh(circle_center * zoom + pan, r * 2 * zoom)
+                pygame.draw.line(screen, (0, 255, 255), self.agent.position * zoom + pan, (self.agent.position + u_cts) * zoom + pan)
+                pygame.draw.arc(screen, (150, 0, 255), range_bbox.to_rect(), *sorted([-defender_angle, -(defender_angle + w)]), width=10)
+
+            return u_cts
+        
+        return np.array([0.0, 0.0])
+
+        
     def project_sensor(self, sensor: BinaryFOVSensor, delta_steps):
         agent_delta_position, agent_delta_angle = self.predict_agent_delta(sensor.agent, delta_steps)
         fake_sensor = types.SimpleNamespace()
@@ -201,18 +246,21 @@ class CustomEvader(AbstractController):
         fangle = defender.angle + dangle
         return fpos + vectorize(fangle) * (min_r + radius), radius
 
+    def killzone_delta_steps(self):
+        return list(range(0, PROJECTION_DELTA+1, PROJECTION_DELTA//(KILLZONE_NUMBER-1)))
     def vector_away_from_killzone(self, sensor: BinaryFOVSensor, delta_steps):
         defender = sensor.agent
-        projections = [self.project_killzone(defender.sensors[1], delta_steps) for delta_steps in range(PROJECTION_DELTA//KILLZONE_NUMBER, PROJECTION_DELTA+1, PROJECTION_DELTA//KILLZONE_NUMBER)]
-        distances = [ppos - self.agent.position for ppos, _ in projections]
+
+        projections = [(*self.project_killzone(defender.sensors[1], delta_steps), kd_steps) for kd_steps in self.killzone_delta_steps()]
+        distances = [ppos - self.agent.position for ppos, _, kd_steps in projections]
         dists_msq = [np.dot(d, d) for d in distances]
         midx = np.argmin(dists_msq)
-        shorten = lambda v, r : v * max(np.linalg.norm(v) - r, 0.1) / np.linalg.norm(v)
+        shorten = lambda v, r : v * max((np.linalg.norm(v) - r) / np.linalg.norm(v), 0.1)
         if midx == 0:
-            return shorten(distances[0], projections[0][1])
+            return shorten(distances[0], projections[0][1]), 0
         prev_delta = projections[midx][0] - projections[midx - 1][0]
         idx = midx -1 if dists_msq[midx - 1] < np.dot(prev_delta, prev_delta) else midx
-        return shorten(distances[idx], projections[idx][1])
+        return shorten(distances[idx], projections[idx][1]), idx
 
 
     def get_nearest_point_of_sensor(self, sensor: BinaryFOVSensor, check_inside=False):
@@ -226,7 +274,7 @@ class CustomEvader(AbstractController):
         left_abs, right_abs = left_rel + agent.position, right_rel + agent.position
         options.append(left_abs - pos) # left whisker end
         options.append(right_abs - pos) # right whisker end
-        left_ortho, right_ortho = np.array([left_rel[1], -left_rel[0]]), np.array([right_rel[1], -right_rel[0]])
+        left_ortho, right_ortho = orthogonal_vector(left_rel), orthogonal_vector(right_rel)
         if self.point_normal_to_segment(left_rel, pos - agent.position):
             options.append(project(left_abs - pos, left_ortho)) # if applicable, intermediate point on left whisker
         if self.point_normal_to_segment(right_rel, pos - agent.position):
@@ -270,9 +318,9 @@ class CustomEvader(AbstractController):
 
         if self.stage == 1: # stage 1, attract towards attack point
             if self.pseudostep < CENTROID_ADJUSTMENT_CUTOFF:
-                # self.defense_vec += agent.world.dt * (self.get_defender_centroid() - goal_pos)
-                self.heatmap.update(agent.world, [a for a in agent.world.population if a.team == "blue"], agent.world.dt)
-                self.defense_vec = self.heatmap.goal_heatmap_vector()
+                self.defense_vec += agent.world.dt * (self.get_defender_centroid() - goal_pos)
+                # self.heatmap.update(agent.world, [a for a in agent.world.population if a.team == "blue"], agent.world.dt)
+                # self.defense_vec = self.heatmap.goal_heatmap_vector()
             if np.dot(self.defense_vec, self.defense_vec) < 1e-3: # prevent divide by zero
                 attack_point = goal_pos
             else:
@@ -296,7 +344,7 @@ class CustomEvader(AbstractController):
                 self.stage = 2
             vector_sum += GOAL_ATTRACTION * (move_vec / np.linalg.norm(move_vec))
         else: # stage 2, attract towards goal
-            vector_sum += GOAL_ATTRACTION * (vec_to_goal / np.linalg.norm(vec_to_goal))
+            vector_sum += max(GOAL_ATTRACTION * (vec_to_goal / np.linalg.norm(vec_to_goal)), CLOSE_GOAL_ATTRACTION * (vec_to_goal / np.linalg.norm(vec_to_goal)**3), key=lambda v : np.dot(v,v))
         
         # apf repulse defender
         for defender in [a for a in agent.world.population if a.team == "blue"]:
@@ -311,10 +359,10 @@ class CustomEvader(AbstractController):
             # p_mag = np.linalg.norm(p_vec)
             # vector_sum -= (DEFENDER_REPULSION / p_mag**2) * p_vec / p_mag
             # repulse killzones
-            k_vec = self.vector_away_from_killzone(bfovs, PROJECTION_DELTA)
-            k_mag = np.linalg.norm(k_vec)
-            vector_sum -= (DEFENDER_REPULSION / k_mag**2) * k_vec / k_mag
-
+            # k_vec, idx = self.vector_away_from_killzone(bfovs, PROJECTION_DELTA)
+            # k_mag = np.linalg.norm(k_vec)
+            # vector_sum -= ((DEFENDER_REPULSION / k_mag**2) * k_vec / k_mag) * KILLZONE_DECAY**idx
+            vector_sum += (DEFENDER_REPULSION / mag**2) * self.draw_sensor_path(bfovs, None, None, None)
             
         
         
