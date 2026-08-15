@@ -26,6 +26,15 @@ def smallest_angular_difference(a1, a2):
     a = a1 - a2
     return (a + np.pi) % (2*np.pi) - np.pi
 
+def angular_distance_to_rotate(start, end, omega): # from a1 to a2
+    lstart, lend = start % (2 * np.pi), end % (2 * np.pi)
+    d = lend - lstart
+    sign_omega = np.sign(omega)
+    if np.sign(d) == sign_omega or d == 0:
+        return d
+    else:
+        return (d + sign_omega * 2 * np.pi) * sign_omega
+
 def orthogonal_vector(v):
     return np.array([v[1], -v[0]])
 
@@ -204,17 +213,20 @@ class CustomEvader(AbstractController):
         if min_radius < np.linalg.norm(self.agent.position - circle_center) < max_radius:
             circen_to_defender = sensor.agent.position - circle_center
             circen_to_self = self.agent.position - circle_center
-            if screen:
-                pygame.draw.circle(screen, (0, 255, 255), circle_center * zoom + pan, min_radius*zoom, 2)
-                pygame.draw.circle(screen, (0, 255, 255), circle_center * zoom + pan, max_radius*zoom, 2)
+            cts_radius = np.linalg.norm(circen_to_self)
+            
             defender_angle = np.atan2(circen_to_defender[1], circen_to_defender[0])
+            self_angle = np.atan2(circen_to_self[1], circen_to_self[0])
 
             middle_radius = (max_radius + min_radius) / 2
-            u_cts = circen_to_self / np.linalg.norm(circen_to_self) * (-1 if np.linalg.norm(circen_to_self) < middle_radius else 1)
+            adtr = angular_distance_to_rotate(defender_angle, self_angle, w)
+            dtr = cts_radius * adtr
+            u_cts = circen_to_self / np.linalg.norm(circen_to_self) * (1 if np.linalg.norm(circen_to_self) < middle_radius else -1) * (dtr)
             if screen:
-                range_bbox = AABB.from_center_wh(circle_center * zoom + pan, r * 2 * zoom)
-                pygame.draw.line(screen, (0, 255, 255), self.agent.position * zoom + pan, (self.agent.position + u_cts) * zoom + pan)
-                pygame.draw.arc(screen, (150, 0, 255), range_bbox.to_rect(), *sorted([-defender_angle, -(defender_angle + w)]), width=10)
+                pygame.draw.circle(screen, (0, 255, 255, 50), circle_center * zoom + pan, middle_radius*zoom, 2)
+                range_bbox = AABB.from_center_wh(circle_center * zoom + pan, cts_radius * 2 * zoom)
+                pygame.draw.line(screen, (0, 255, 255, 50), self.agent.position * zoom + pan, (self.agent.position + u_cts) * zoom + pan, width=np.clip((3 / dtr**2), 1, 5).astype(np.int16))
+                pygame.draw.arc(screen, (150, 0, 255, 50), range_bbox.to_rect(), *sorted([-defender_angle, -(defender_angle + adtr)]), width=3)
 
             return u_cts
         
@@ -362,7 +374,11 @@ class CustomEvader(AbstractController):
             # k_vec, idx = self.vector_away_from_killzone(bfovs, PROJECTION_DELTA)
             # k_mag = np.linalg.norm(k_vec)
             # vector_sum -= ((DEFENDER_REPULSION / k_mag**2) * k_vec / k_mag) * KILLZONE_DECAY**idx
-            vector_sum += (DEFENDER_REPULSION / mag**2) * self.draw_sensor_path(bfovs, None, None, None)
+            donut_vec = self.draw_sensor_path(bfovs, None, None, None)
+            donut_mag = np.linalg.norm(donut_vec)
+            if donut_mag == 0:
+                continue
+            vector_sum -= (DEFENDER_REPULSION / donut_mag**2) * donut_vec / donut_mag
             
         
         
