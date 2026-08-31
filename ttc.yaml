@@ -25,12 +25,12 @@ metrics:
   metric:
     type: EntityLen
     name: How many collided with red
-    history: 1
+    history_size: 1
     target_name: intruder
     attribute: collided
 - type: EntityLen
   name: How many red on goal
-  history: 1
+  history_size: 1
   target_name: goal
   attribute: collided
 stop_at: world.total_steps > <{cycles|default(1000)}> or world.metrics[0].module.redwin or world.metrics[0].module.captured
